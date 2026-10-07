@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    "crates/trace50-core",
+    "crates/trace50-cli",
+    "crates/trace50-wasm",
+]
+resolver = "2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

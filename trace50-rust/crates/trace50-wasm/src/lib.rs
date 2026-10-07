@@ -1,0 +1,104 @@
+//! WebAssembly client-side engine for TRACE-5.0.
+//!
+//! Exposes the complete molecular transmission network surveillance engine
+//! directly to Web browsers, Observable Framework, D3.js dashboards, and Node.js.
+
+use wasm_bindgen::prelude::*;
+use trace50_core::{
+    compute_pairwise_tn93, DannoEstimator, Alignment, Trace50Config, run_trace50, run_trace50_json
+};
+use trace50_core::tn93::char_to_iupac_mask;
+
+#[wasm_bindgen(start)]
+pub fn init() {
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
+}
+
+/// Returns the TRACE-5.0 engine version.
+#[wasm_bindgen]
+pub fn version() -> String {
+    "5.0.0".to_string()
+}
+
+/// Calculates the analytical Tamura-Nei 93 (TN93) pairwise genetic distance
+/// between two nucleotide sequences with IUPAC ambiguity resolution.
+#[wasm_bindgen]
+pub fn compute_tn93(seq_a: &str, seq_b: &str) -> f64 {
+    let bits_a: Vec<u8> = seq_a.bytes().map(char_to_iupac_mask).collect();
+    let bits_b: Vec<u8> = seq_b.bytes().map(char_to_iupac_mask).collect();
+    compute_pairwise_tn93(&bits_a, &bits_b)
+}
+
+/// Evaluates the continuous DANNO Bayes Factor for a candidate transmission dyad.
+/// If physical molecular clock adequacy fails (p < 0.05), returns 0.0.
+#[wasm_bindgen]
+pub fn compute_danno_bf(
+    dist: f64,
+    delta_t: f64,
+    seq_len: usize,
+    mu: f64,
+    tau_bar: f64,
+    omega: f64,
+    t_span: f64,
+) -> f64 {
+    let estimator = DannoEstimator::new(
+        seq_len,
+        mu,
+        tau_bar,
+        omega,
+        t_span,
+        0.05,
+        0.065,
+        0.0004,
+    );
+    estimator.compute_bayes_factor(dist, delta_t)
+}
+
+/// Evaluates molecular clock physical adequacy cumulative Poisson probability.
+#[wasm_bindgen]
+pub fn check_clock_adequacy(
+    k_substitutions: f64,
+    delta_t: f64,
+    seq_len: usize,
+    mu: f64,
+) -> f64 {
+    let estimator = DannoEstimator::new(seq_len, mu, 1.0, 2.0, 20.0, 0.05, 0.065, 0.0004);
+    let (p_adeq, _) = estimator.check_clock_adequacy(k_substitutions, delta_t, Some(mu));
+    p_adeq
+}
+
+/// Runs the complete, end-to-end TRACE-5.0 surveillance pipeline from a FASTA string
+/// and optional JSON configuration string, returning the full visualization dossier JSON string.
+#[wasm_bindgen]
+pub fn run_trace50_pipeline(
+    fasta_content: &str,
+    config_json: Option<String>,
+) -> Result<String, JsValue> {
+    run_trace50_json(fasta_content, config_json.as_deref())
+        .map_err(|e| JsValue::from_str(&e))
+}
+
+/// Runs the complete TRACE-5.0 pipeline and returns the visualization dossier directly
+/// as a native JavaScript Object.
+#[wasm_bindgen]
+pub fn run_trace50_object(
+    fasta_content: &str,
+    config_val: JsValue,
+) -> Result<JsValue, JsValue> {
+    let alignment = Alignment::from_fasta_str(fasta_content)
+        .map_err(|e| JsValue::from_str(&e))?;
+
+    let config: Trace50Config = if !config_val.is_undefined() && !config_val.is_null() {
+        serde_wasm_bindgen::from_value(config_val)
+            .map_err(|e| JsValue::from_str(&format!("Failed to parse config object: {}", e)))?
+    } else {
+        Trace50Config::default()
+    };
+
+    let dossier = run_trace50(&alignment, &config)
+        .map_err(|e| JsValue::from_str(&e))?;
+
+    serde_wasm_bindgen::to_value(&dossier)
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize dossier to JS object: {}", e)))
+}
