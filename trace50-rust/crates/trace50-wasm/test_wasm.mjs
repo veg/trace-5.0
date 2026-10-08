@@ -8,7 +8,9 @@ import wasmPkg, {
     compute_danno_bf,
     check_clock_adequacy,
     run_trace50_pipeline,
-    run_trace50_object
+    run_trace50_object,
+    run_chin_bayesian_mcmc,
+    compute_info_danno_score
 } from './pkg/trace50_wasm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -134,6 +136,44 @@ TGCATGCATGCATGCATGCATGCATGCATGCT
         console.log("  >>> PASS: Native JS Object output verified!");
     } else {
         console.error("  >>> FAIL: Invalid JS Object returned");
+        process.exit(1);
+    }
+    console.log("--------------------------------------------------------------------------------");
+
+    // Test 6: CHIN Joint Bayesian Monte Carlo Sampler
+    console.log("[TEST 6] CHIN Macro-Epidemic Joint Bayesian Monte Carlo Sampler");
+    const chinRes = run_chin_bayesian_mcmc(
+        500,    // n_samples
+        35,     // n_edges
+        5000,   // n_draws
+        1.1, 2.5, // r0 range
+        0.1, 1.0, // k range
+        0.5, 2.0, // phi range
+        42      // seed
+    );
+    console.log(`  Draws simulated: ${chinRes.n_draws}`);
+    console.log(`  Median active pool N_act: ${chinRes.n_act.median.toFixed(1)}`);
+    console.log(`  95% CrI N_act: [${chinRes.n_act.ci_low.toFixed(1)}, ${chinRes.n_act.ci_high.toFixed(1)}]`);
+    console.log(`  Median sampling fraction rho: ${chinRes.rho_pct.median.toFixed(2)}%`);
+    console.log(`  Median Fano factor F: ${chinRes.fano_factor_median.toFixed(3)}`);
+    if (chinRes.n_draws === 5000 && chinRes.n_act.median > 0) {
+        console.log("  >>> PASS: CHIN Bayesian Monte Carlo sampler verified!");
+    } else {
+        console.error("  >>> FAIL: Unexpected CHIN MCMC results");
+        process.exit(1);
+    }
+    console.log("--------------------------------------------------------------------------------");
+
+    // Test 7: Info-DANNO Information-Theoretic Transmission Odds
+    console.log("[TEST 7] Info-DANNO Information-Theoretic Transmission Odds Score");
+    const seqAcute1 = "ACGTACGTACGTACGTACGTACGTACGTACGT";
+    const seqAcute2 = "ACGTACGTACGTACGTACGTACGTACGTACGA"; // 1 difference
+    const infoScore = compute_info_danno_score(seqAcute1, seqAcute2, 0.1, 2.0e-3);
+    console.log(`  Info-DANNO log-odds score (nats): ${infoScore.toFixed(3)}`);
+    if (infoScore > 0.0) {
+        console.log("  >>> PASS: Info-DANNO log-odds score verified!");
+    } else {
+        console.error("  >>> FAIL: Unexpected Info-DANNO score");
         process.exit(1);
     }
 

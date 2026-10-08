@@ -18,6 +18,6 @@ pub use tn93::{Alignment, compute_pairwise_tn93, compute_fractional_substitution
 pub use danno::{DannoEstimator, TransmissionDyad};
 pub use info_danno::{InfoDannoEstimator, AlleleFrequencyTable};
 pub use autoclock::{SteveCommunity, recursive_autoclock_deconvolution};
-pub use chin::{ChinEstimator, ActivePopulationEstimate, BorelDecayResult};
+pub use chin::{ChinEstimator, ActivePopulationEstimate, BorelDecayResult, ChinBayesianResult, ChinPosteriorSummary, DateQuantizationResult};
 pub use visualization::VisualizationDossier;
 pub use pipeline::{Trace50Config, run_trace50, run_trace50_json};

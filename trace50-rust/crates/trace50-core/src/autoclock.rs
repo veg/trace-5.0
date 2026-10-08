@@ -145,7 +145,11 @@ pub fn fit_clock_community(
             mean_pairwise_dist: mean_d,
             time_span_years: span,
             is_active_outbreak: false,
-            operational_tier: "Too Small to Model".to_string(),
+            operational_tier: if n == 2 {
+                "Contemporaneous Acute Dyad".to_string()
+            } else {
+                "Singleton Node".to_string()
+            },
             stop_reason: "size_floor".to_string(),
         };
     }
@@ -216,13 +220,17 @@ pub fn fit_clock_community(
         min_date
     };
 
-    let is_active = lr.slope >= 1.2e-3 && fieller_status == "OK";
+    let is_recent = tmrca >= (max_date - 6.0) || (ci_mrca[1].is_finite() && ci_mrca[1] >= (max_date - 4.0));
+    let is_active = lr.slope >= 1.0e-3 && fieller_status == "OK" && lr.r_squared >= 0.15 && is_recent;
+
     let operational_tier = if is_active {
-        "High-Velocity Active Outbreak".to_string()
-    } else if fieller_status == "RATE_UNIDENTIFIABLE_G_GE_1" {
-        "Chronic Background Reservoir".to_string()
+        "Active Outbreak Chain".to_string()
+    } else if lr.slope >= 5.0e-4 && fieller_status == "OK" && is_recent {
+        "Emergent Seed Cluster".to_string()
+    } else if lr.slope <= 0.0 || (span > 5.0 && lr.r_squared < 0.02) {
+        "Endemic Extinct Lineage".to_string()
     } else {
-        "Stably Evolving Endemic Lineage".to_string()
+        "Stationary Chronic Compartment".to_string()
     };
 
     SteveCommunity {

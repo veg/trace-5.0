@@ -13,12 +13,23 @@ export function check_clock_adequacy(k_substitutions: number, delta_t: number, s
 export function compute_danno_bf(dist: number, delta_t: number, seq_len: number, mu: number, tau_bar: number, omega: number, t_span: number): number;
 
 /**
+ * Evaluates site-specific Information-Theoretic Transmission Odds (in nats)
+ * comparing two sequences against an alignment background.
+ */
+export function compute_info_danno_score(seq_a: string, seq_b: string, delta_t: number, mu: number): number;
+
+/**
  * Calculates the analytical Tamura-Nei 93 (TN93) pairwise genetic distance
  * between two nucleotide sequences with IUPAC ambiguity resolution.
  */
 export function compute_tn93(seq_a: string, seq_b: string): number;
 
 export function init(): void;
+
+/**
+ * Runs the full joint Bayesian Monte Carlo uncertainty sampler for CHIN macro-epidemic sizing.
+ */
+export function run_chin_bayesian_mcmc(n_samples: number, n_edges: number, n_draws: number, r0_min: number, r0_max: number, k_min: number, k_max: number, phi_min: number, phi_max: number, seed: number): any;
 
 /**
  * Runs the complete TRACE-5.0 pipeline and returns the visualization dossier directly
@@ -43,8 +54,10 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly check_clock_adequacy: (a: number, b: number, c: number, d: number) => number;
     readonly compute_danno_bf: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+    readonly compute_info_danno_score: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
     readonly compute_tn93: (a: number, b: number, c: number, d: number) => number;
     readonly init: () => void;
+    readonly run_chin_bayesian_mcmc: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number];
     readonly run_trace50_object: (a: number, b: number, c: any) => [number, number, number];
     readonly run_trace50_pipeline: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly version: () => [number, number];

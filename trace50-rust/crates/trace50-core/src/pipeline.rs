@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use crate::autoclock::recursive_autoclock_deconvolution;
 use crate::chin::ChinEstimator;
 use crate::danno::DannoEstimator;
+use crate::info_danno::{AlleleFrequencyTable, InfoDannoEstimator};
 use crate::network::extract_clusters;
 use crate::tn93::Alignment;
 use crate::visualization::*;
@@ -36,6 +37,7 @@ pub struct Trace50Config {
     pub max_recursion_depth: usize,
     pub use_robust_bf: bool,
     pub static_distance_threshold: f64,
+    pub use_info_danno: bool,
 }
 
 impl Default for Trace50Config {
@@ -54,6 +56,7 @@ impl Default for Trace50Config {
             max_recursion_depth: 8,
             use_robust_bf: false,
             static_distance_threshold: 0.015,
+            use_info_danno: false,
         }
     }
 }
@@ -128,7 +131,7 @@ pub fn run_trace50(
     );
 
     let all_indices: Vec<usize> = (0..n).collect();
-    let dyads = danno.screen_dyads(
+    let mut dyads = danno.screen_dyads(
         &all_indices,
         &dates,
         &d_matrix,
@@ -138,6 +141,32 @@ pub fn run_trace50(
         config.fdr_threshold,
         config.use_robust_bf,
     );
+
+    // If InfoDANNO is enabled, reweight candidates using empirical allele frequencies
+    if config.use_info_danno {
+        let freq_table = AlleleFrequencyTable::from_alignment(alignment);
+        let info_danno = InfoDannoEstimator::new(danno.clone(), freq_table, None, None);
+
+        for d in &mut dyads {
+            if !d.is_clock_violation && d.bayes_factor > 0.0 {
+                let seq1 = &alignment.encoded_ints[d.idx1];
+                let seq2 = &alignment.encoded_ints[d.idx2];
+                let (info_bf, _, _) = info_danno.evaluate_pair_info(seq1, seq2, d.dist, d.delta_t);
+                d.bayes_factor = info_bf;
+                let post_odds = config.prior_odds * info_bf;
+                d.pep = 1.0 / (1.0 + post_odds);
+            }
+        }
+
+        // Re-sort and recompute Benjamini-Hochberg FDR
+        dyads.sort_by(|a, b| a.pep.partial_cmp(&b.pep).unwrap_or(std::cmp::Ordering::Equal));
+        let mut cum_pep = 0.0;
+        for (rank, cand) in dyads.iter_mut().enumerate() {
+            cum_pep += cand.pep;
+            cand.q_value = (cum_pep / ((rank + 1) as f64)).min(1.0);
+            cand.is_certified = !cand.is_clock_violation && (cand.q_value <= config.fdr_threshold);
+        }
+    }
 
     // Partition dyads into certified transmissions vs clock violations vs uncertified
     let mut certified_edges = Vec::new();
@@ -222,6 +251,11 @@ pub fn run_trace50(
     let theta = chin.estimate_composite_parameter(n, e_certified);
     let rho = chin.estimate_sampling_fraction(n, e_certified, Some(config.r0));
     let active_pop = chin.estimate_active_population(n, e_certified, Some(config.r0), 0.95);
+    let bayesian_mcmc = if n > 0 && e_certified > 0 {
+        chin.run_joint_bayesian_monte_carlo(n, e_certified, 10_000, (1.2, 2.0), (0.1, 0.5), (0.0, 0.40), 42).ok()
+    } else {
+        None
+    };
 
     let cluster_sizes: Vec<usize> = certified_clusters.iter().map(|c| c.size).collect();
     let borel_decay = chin.test_borel_branching_decay(&cluster_sizes, 12);
@@ -321,6 +355,7 @@ pub fn run_trace50(
             surveillance_coverage_rho: rho,
             active_population: active_pop,
             borel_decay,
+            bayesian_mcmc,
         },
         phase_space_points: phase_points,
         borel_spectrum: borel_bins,

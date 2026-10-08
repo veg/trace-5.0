@@ -85,6 +85,10 @@ struct CliArgs {
     /// Use min-max robust Bayes Factor over biological uncertainty domain
     #[arg(long, default_value_t = false)]
     use_robust: bool,
+
+    /// Use site-specific Information-Theoretic Transmission Odds (InfoDANNO)
+    #[arg(long, default_value_t = false)]
+    info_danno: bool,
 }
 
 fn parse_date_string(date_str: &str) -> Option<f64> {
@@ -265,6 +269,7 @@ fn main() {
         max_recursion_depth: args.max_depth,
         use_robust_bf: args.use_robust,
         static_distance_threshold: args.threshold,
+        use_info_danno: args.info_danno,
     };
 
     println!("[*] Executing end-to-end TRACE-5.0 pipeline...");

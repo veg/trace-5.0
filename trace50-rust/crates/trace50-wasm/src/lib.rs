@@ -102,3 +102,52 @@ pub fn run_trace50_object(
     serde_wasm_bindgen::to_value(&dossier)
         .map_err(|e| JsValue::from_str(&format!("Failed to serialize dossier to JS object: {}", e)))
 }
+
+/// Runs the full joint Bayesian Monte Carlo uncertainty sampler for CHIN macro-epidemic sizing.
+#[wasm_bindgen]
+pub fn run_chin_bayesian_mcmc(
+    n_samples: usize,
+    n_edges: usize,
+    n_draws: usize,
+    r0_min: f64,
+    r0_max: f64,
+    k_min: f64,
+    k_max: f64,
+    phi_min: f64,
+    phi_max: f64,
+    seed: u32,
+) -> Result<JsValue, JsValue> {
+    let chin = trace50_core::ChinEstimator::new(1.5);
+    let res = chin.run_joint_bayesian_monte_carlo(
+        n_samples,
+        n_edges,
+        n_draws,
+        (r0_min, r0_max),
+        (k_min, k_max),
+        (phi_min, phi_max),
+        seed as u64,
+    ).map_err(|e| JsValue::from_str(&e))?;
+    serde_wasm_bindgen::to_value(&res)
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize CHIN result: {}", e)))
+}
+
+/// Evaluates site-specific Information-Theoretic Transmission Odds (in nats)
+/// comparing two sequences against an alignment background.
+#[wasm_bindgen]
+pub fn compute_info_danno_score(
+    seq_a: &str,
+    seq_b: &str,
+    delta_t: f64,
+    mu: f64,
+) -> f64 {
+    let bits_a: Vec<u8> = seq_a.bytes().map(char_to_iupac_mask).collect();
+    let bits_b: Vec<u8> = seq_b.bytes().map(char_to_iupac_mask).collect();
+    let dist = compute_pairwise_tn93(&bits_a, &bits_b);
+    let l = seq_a.len().min(seq_b.len());
+    let danno = DannoEstimator::new(l, mu, 1.0, 2.0, 20.0, 0.05, 0.065, 0.0004);
+    let base_bf = danno.compute_bayes_factor(dist, delta_t);
+    if base_bf <= 0.0 {
+        return -1000.0;
+    }
+    base_bf.ln()
+}

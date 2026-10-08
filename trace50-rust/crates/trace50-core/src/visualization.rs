@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use crate::autoclock::SteveCommunity;
-use crate::chin::{ActivePopulationEstimate, BorelDecayResult};
+use crate::chin::{ActivePopulationEstimate, BorelDecayResult, ChinBayesianResult};
 
 /// Master visualization dossier containing all network, phylogenetic, and epidemiological outputs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +109,8 @@ pub struct DossierMacroScaling {
     pub surveillance_coverage_rho: f64,
     pub active_population: ActivePopulationEstimate,
     pub borel_decay: BorelDecayResult,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bayesian_mcmc: Option<ChinBayesianResult>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

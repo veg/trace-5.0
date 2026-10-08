@@ -3,8 +3,10 @@
 export const memory: WebAssembly.Memory;
 export const check_clock_adequacy: (a: number, b: number, c: number, d: number) => number;
 export const compute_danno_bf: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+export const compute_info_danno_score: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
 export const compute_tn93: (a: number, b: number, c: number, d: number) => number;
 export const init: () => void;
+export const run_chin_bayesian_mcmc: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number];
 export const run_trace50_object: (a: number, b: number, c: any) => [number, number, number];
 export const run_trace50_pipeline: (a: number, b: number, c: number, d: number) => [number, number, number, number];
 export const version: () => [number, number];

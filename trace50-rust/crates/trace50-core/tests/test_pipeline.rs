@@ -35,3 +35,28 @@ TGCATGCATGCATGCATGCATGCATGCATGCT
     assert!(json_str.contains("macro_scaling"));
     assert!(json_str.contains("phase_space_points"));
 }
+
+#[test]
+fn test_end_to_end_pipeline_with_info_danno() {
+    let fasta = r#">seq1_2015.0
+ACGTACGTACGTACGTACGTACGTACGTACGT
+>seq2_2015.1
+ACGTACGTACGTACGTACGTACGTACGTACGT
+>seq3_2015.2
+ACGTACGTACGTACGTACGTACGTACGTACGA
+>seq4_2018.0
+TGCATGCATGCATGCATGCATGCATGCATGCA
+>seq5_2018.5
+TGCATGCATGCATGCATGCATGCATGCATGCT
+"#;
+
+    let alignment = Alignment::from_fasta_str(fasta).expect("Failed to parse FASTA");
+    let mut config = Trace50Config::default();
+    config.use_info_danno = true;
+    config.min_cluster_size = 2;
+    config.static_distance_threshold = 0.05;
+
+    let dossier = run_trace50(&alignment, &config).expect("Pipeline execution with InfoDANNO failed");
+    assert_eq!(dossier.metadata.num_sequences, 5);
+    assert_eq!(dossier.nodes.len(), 5);
+}
