@@ -62,9 +62,41 @@ impl Default for Trace50Config {
 }
 
 /// Executes the end-to-end TRACE-5.0 surveillance pipeline.
+///
+/// Distances are computed internally via `Alignment::compute_distance_matrix`.
+/// To supply a precomputed matrix instead -- for example from the `tn93`
+/// binary, the HIV-TRACE field-standard implementation -- use
+/// [`run_trace50_with_matrix`].
 pub fn run_trace50(
     alignment: &Alignment,
     config: &Trace50Config,
+) -> Result<VisualizationDossier, String> {
+    run_trace50_with_matrix(alignment, config, None)
+}
+
+/// As [`run_trace50`], but optionally consuming a precomputed distance matrix.
+///
+/// `d_matrix`, when supplied, must be a row-major n x n matrix in the same
+/// sequence order as `alignment.headers`, where n = alignment.num_sequences().
+/// Non-finite entries are treated as "distance unavailable" exactly as an
+/// internally computed matrix would be.
+///
+/// This exists because the in-crate TN93 estimates empirical base frequencies
+/// from a per-site OR union of the two sequences' IUPAC bitmasks
+/// (`tn93.rs`, cnt_a..cnt_t from `a | b`), which counts presence per site
+/// rather than base occurrences. On real HIV-1 pol cohorts that inflates the
+/// variance of the distance distribution and yields distances that are not
+/// physically possible within a subtype (observed max 0.883 on a 1,879-sequence
+/// cohort, against 0.165 from the `tn93` binary on the same alignment).
+/// Because `DannoEstimator::calibrate_from_data` moment-matches the background
+/// Negative Binomial on that distribution, the inflated variance caps the
+/// attainable Bayes factor and can make the FDR threshold unreachable for
+/// every pair. Accepting an external matrix lets callers bypass that until the
+/// frequency estimator is corrected.
+pub fn run_trace50_with_matrix(
+    alignment: &Alignment,
+    config: &Trace50Config,
+    d_matrix: Option<Vec<f64>>,
 ) -> Result<VisualizationDossier, String> {
     #[cfg(not(target_arch = "wasm32"))]
     let start_time = std::time::Instant::now();
@@ -96,8 +128,21 @@ pub fn run_trace50(
     }
     let time_span_years = if date_max >= date_min { date_max - date_min } else { 0.0 };
 
-    // 2. Compute pairwise TN93 distance matrix
-    let d_matrix = alignment.compute_distance_matrix();
+    // 2. Pairwise TN93 distance matrix: supplied by the caller, or computed here
+    let d_matrix = match d_matrix {
+        Some(m) => {
+            if m.len() != n * n {
+                return Err(format!(
+                    "supplied distance matrix has {} entries, expected {} (n x n for n = {})",
+                    m.len(),
+                    n * n,
+                    n
+                ));
+            }
+            m
+        }
+        None => alignment.compute_distance_matrix(),
+    };
 
     // 3. Static Network Benchmark (e.g. d <= 1.5%)
     let mut static_edges = Vec::new();

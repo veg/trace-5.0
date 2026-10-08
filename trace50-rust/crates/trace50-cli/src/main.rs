@@ -8,7 +8,7 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
-use trace50_core::{run_trace50, Alignment, Trace50Config};
+use trace50_core::{run_trace50_with_matrix, Alignment, Trace50Config};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -89,6 +89,14 @@ struct CliArgs {
     /// Use site-specific Information-Theoretic Transmission Odds (InfoDANNO)
     #[arg(long, default_value_t = false)]
     info_danno: bool,
+
+    /// Consume a precomputed pairwise distance CSV instead of computing TN93
+    /// internally. Expects `tn93` output: a header line then
+    /// ID1,ID2,Distance rows, IDs matching the FASTA headers. Pairs absent
+    /// from the file are treated as distance-unavailable, so pass the full
+    /// matrix (`tn93 -t 1.0`) if the background is to be calibrated from it.
+    #[arg(long)]
+    distances: Option<PathBuf>,
 }
 
 fn parse_date_string(date_str: &str) -> Option<f64> {
@@ -194,6 +202,68 @@ fn parse_metadata_dates(meta_path: &Path, id_col: &str, date_col: &str) -> Resul
     Ok(map)
 }
 
+/// Loads a `tn93`-style pairwise distance CSV into a row-major n x n matrix
+/// ordered to match `headers`.
+///
+/// Expected format: an optional header line, then `ID1,ID2,Distance` rows.
+/// Returns (matrix, pairs_loaded, rows_with_unknown_ids).
+///
+/// Pairs not present in the file are left as NaN, i.e. "distance
+/// unavailable", which the pipeline and `calibrate_from_data` both skip. A
+/// thresholded edge list therefore yields a truncated background, so pass the
+/// full matrix when the background is to be calibrated from it.
+fn load_distance_csv(
+    path: &Path,
+    headers: &[String],
+) -> Result<(Vec<f64>, usize, usize), String> {
+    let n = headers.len();
+    let index: std::collections::HashMap<&str, usize> =
+        headers.iter().enumerate().map(|(i, h)| (h.as_str(), i)).collect();
+
+    let file = File::open(path).map_err(|e| e.to_string())?;
+    let mut m = vec![f64::NAN; n * n];
+    for i in 0..n {
+        m[i * n + i] = 0.0;
+    }
+
+    let mut loaded = 0usize;
+    let mut unknown = 0usize;
+    for (lineno, line) in BufReader::new(file).lines().enumerate() {
+        let line = line.map_err(|e| e.to_string())?;
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let f: Vec<&str> = line.split(',').map(|s| s.trim().trim_matches('"')).collect();
+        if f.len() < 3 {
+            continue;
+        }
+        // skip a header row
+        if lineno == 0 && f[2].parse::<f64>().is_err() {
+            continue;
+        }
+        let d: f64 = match f[2].parse() {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        match (index.get(f[0]), index.get(f[1])) {
+            (Some(&i), Some(&j)) => {
+                m[i * n + j] = d;
+                m[j * n + i] = d;
+                loaded += 1;
+            }
+            _ => unknown += 1,
+        }
+    }
+    if loaded == 0 {
+        return Err(format!(
+            "no usable rows: none of the ID pairs matched the {} FASTA headers",
+            n
+        ));
+    }
+    Ok((m, loaded, unknown))
+}
+
 fn main() {
     let args = CliArgs::parse();
 
@@ -272,8 +342,34 @@ fn main() {
         use_info_danno: args.info_danno,
     };
 
+    // Optional precomputed distance matrix (e.g. from the `tn93` binary)
+    let supplied_matrix = match &args.distances {
+        None => None,
+        Some(path) => match load_distance_csv(path, &alignment.headers) {
+            Ok((m, found, missing)) => {
+                println!(
+                    "[*] Loaded {} pairwise distances from {} ({} of {} pairs present{})",
+                    found,
+                    path.display(),
+                    found,
+                    alignment.headers.len() * (alignment.headers.len() - 1) / 2,
+                    if missing > 0 {
+                        format!(", {} unknown IDs skipped", missing)
+                    } else {
+                        String::new()
+                    }
+                );
+                Some(m)
+            }
+            Err(e) => {
+                eprintln!("[!] Failed to load --distances {}: {}", path.display(), e);
+                std::process::exit(1);
+            }
+        },
+    };
+
     println!("[*] Executing end-to-end TRACE-5.0 pipeline...");
-    let dossier = match run_trace50(&alignment, &config) {
+    let dossier = match run_trace50_with_matrix(&alignment, &config, supplied_matrix) {
         Ok(d) => d,
         Err(e) => {
             eprintln!("[!] Pipeline execution failed: {}", e);
