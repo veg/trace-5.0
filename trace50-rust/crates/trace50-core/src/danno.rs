@@ -28,6 +28,8 @@ pub struct TransmissionDyad {
     pub q_value: f64,
     pub p_adequacy: f64,
     pub is_clock_violation: bool,
+    pub is_supported: bool,
+    #[serde(default)]
     pub is_certified: bool,
 }
 
@@ -367,6 +369,7 @@ impl DannoEstimator {
                             q_value: 1.0,
                             p_adequacy: p_adeq,
                             is_clock_violation: !is_adequate,
+                            is_supported: false,
                             is_certified: false,
                         });
                     }
@@ -395,9 +398,10 @@ impl DannoEstimator {
             }
         }
 
-        // Mark certified transmissions
+        // Mark supported transmission links
         for cand in &mut candidates {
             if cand.q_value <= fdr_threshold && !cand.is_clock_violation {
+                cand.is_supported = true;
                 cand.is_certified = true;
             }
         }

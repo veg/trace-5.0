@@ -3,6 +3,9 @@ import init, { run_trace50_pipeline, version } from './pkg/trace50_wasm.js';
 let wasmReady = false;
 let currentDossier = null;
 let currentNetworkMode = 'danno'; // 'danno' | 'static' | 'violations'
+let currentSimulation = null;
+let currentSvgG = null;
+let currentZoom = null;
 
 // DOM Elements
 const statusIndicator = document.getElementById('wasm-status');
@@ -13,64 +16,226 @@ const fastaNameBadge = document.getElementById('fasta-name-badge');
 
 let loadedFastaContent = "";
 
-// Initialize WebAssembly
+// -----------------------------------------------------------------------------
+// Theme Management (Die Gute Form: Dunkel / Hell)
+// -----------------------------------------------------------------------------
+window.toggleTheme = function() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('trace50_theme', next); } catch (e) {}
+
+  const label = document.getElementById('theme-label');
+  if (label) {
+    label.textContent = next === 'dark' ? 'THEME: DUNKEL' : 'THEME: HELL';
+  }
+
+  // Redraw graphs with updated theme colors
+  if (currentDossier) {
+    const activeTab = document.querySelector('.tab-btn.active')?.getAttribute('data-tab');
+    if (activeTab === 'network') renderNetworkGraph(currentDossier);
+    if (activeTab === 'phasespace') renderPhaseSpace(currentDossier);
+  }
+};
+
+// Initialize Theme from localStorage
+(function initTheme() {
+  try {
+    const saved = localStorage.getItem('trace50_theme');
+    if (saved === 'light' || saved === 'dark') {
+      document.documentElement.setAttribute('data-theme', saved);
+      const label = document.getElementById('theme-label');
+      if (label) label.textContent = saved === 'dark' ? 'THEME: DUNKEL' : 'THEME: HELL';
+    }
+  } catch (e) {}
+})();
+
+// -----------------------------------------------------------------------------
+// WebAssembly Kernel Initialization
+// -----------------------------------------------------------------------------
 async function setupWasm() {
   try {
-    statusIndicator.textContent = "⏳ Initializing WebAssembly Kernel...";
+    if (statusIndicator) {
+      statusIndicator.textContent = "INITIALIZING WASM KERNEL...";
+      statusIndicator.style.color = "var(--signal-amber)";
+    }
     await init();
     wasmReady = true;
-    statusIndicator.textContent = `⚡ Rust WebAssembly Engine v${version()} Ready`;
-    statusIndicator.style.color = "#34d399";
-    runBtn.disabled = false;
-    // Auto-load Demo 1 on startup
-    loadDemoDataset('demo_outbreak.fasta', 'Demo 1: Acute Outbreak vs. Clock Violations (10 seqs)');
+    if (statusIndicator) {
+      statusIndicator.textContent = `RUST WASM ENGINE v${version()} READY`;
+      statusIndicator.style.color = "var(--signal-emerald)";
+    }
+    if (runBtn) runBtn.disabled = false;
+
+    // Proactively load Demo 1 on startup
+    loadDemoDataset('demo_outbreak.fasta', 'DEMO 1: OUTBREAK & CLOCK VIOLATIONS (10 SEQS)');
   } catch (err) {
     console.error("Failed to initialize WASM:", err);
-    statusIndicator.textContent = "❌ Failed to initialize WebAssembly engine";
-    statusIndicator.style.color = "#f87171";
+    if (statusIndicator) {
+      statusIndicator.textContent = "FAILED TO INITIALIZE WASM ENGINE";
+      statusIndicator.style.color = "var(--signal-vermilion)";
+    }
   }
 }
 
-// Drag & drop handlers
-dropzone.addEventListener('click', () => fastaInput.click());
-dropzone.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  dropzone.classList.add('dragover');
-});
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-dropzone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropzone.classList.remove('dragover');
-  if (e.dataTransfer.files.length > 0) {
-    handleFile(e.dataTransfer.files[0]);
+// -----------------------------------------------------------------------------
+// File Drag & Drop Handlers
+// -----------------------------------------------------------------------------
+if (dropzone) {
+  dropzone.addEventListener('click', () => fastaInput?.click());
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  });
+}
+
+if (fastaInput) {
+  fastaInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      handleFile(e.target.files[0]);
+    }
+  });
+}
+
+function parseAndValidateFasta(text) {
+  const lines = text.split(/\r?\n/);
+  const records = [];
+  let currentHeader = null;
+  let currentSeq = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith('>')) {
+      if (currentHeader !== null) {
+        records.push({ header: currentHeader, seq: currentSeq.join('') });
+        currentSeq = [];
+      }
+      currentHeader = trimmed.substring(1).trim();
+    } else {
+      currentSeq.push(trimmed);
+    }
   }
-});
-fastaInput.addEventListener('change', (e) => {
-  if (e.target.files.length > 0) {
-    handleFile(e.target.files[0]);
+  if (currentHeader !== null) {
+    records.push({ header: currentHeader, seq: currentSeq.join('') });
   }
-});
+
+  if (records.length < 2) {
+    return {
+      valid: false,
+      error: `FASTA must contain at least 2 sequences (found ${records.length}).`
+    };
+  }
+
+  const firstLen = records[0].seq.length;
+  for (let i = 1; i < records.length; i++) {
+    if (records[i].seq.length !== firstLen) {
+      return {
+        valid: false,
+        error: `Sequence length mismatch: "${records[0].header.substring(0, 24)}" has ${firstLen} bp, but "${records[i].header.substring(0, 24)}" has ${records[i].seq.length} bp. Sequences must be aligned to identical length.`
+      };
+    }
+  }
+
+  // Check date parsing in headers
+  let dateCount = 0;
+  for (const rec of records) {
+    const parts = rec.header.split(/[|_]/);
+    let hasDate = false;
+    for (const p of parts) {
+      const pTrim = p.trim();
+      if (/^\d{4}-\d{2}(-\d{2})?$/.test(pTrim) || /^\d{4}\.\d+$/.test(pTrim)) {
+        hasDate = true;
+        break;
+      }
+      if (/^\d{4}$/.test(pTrim)) {
+        const yr = parseInt(pTrim, 10);
+        if (yr >= 1970 && yr <= 2035) {
+          hasDate = true;
+          break;
+        }
+      }
+    }
+    if (hasDate) dateCount++;
+  }
+
+  const missingDates = records.length - dateCount;
+  return {
+    valid: true,
+    numSequences: records.length,
+    seqLength: firstLen,
+    dateCount,
+    missingDates,
+    warning: missingDates > 0 ? `${missingDates} of ${records.length} sequences lack dates in headers (expected >ID|YYYY-MM-DD or >ID|YYYY.YY).` : null
+  };
+}
 
 function handleFile(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
-    loadedFastaContent = e.target.result;
-    fastaNameBadge.textContent = `Loaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-    fastaNameBadge.style.display = 'inline-block';
+    const content = e.target.result;
+    const val = parseAndValidateFasta(content);
+
+    if (!val.valid) {
+      loadedFastaContent = null;
+      if (fastaNameBadge) {
+        fastaNameBadge.textContent = `FORMAT ERROR: ${val.error}`;
+        fastaNameBadge.style.display = 'inline-block';
+        fastaNameBadge.style.borderColor = 'var(--signal-vermilion)';
+        fastaNameBadge.style.color = 'var(--signal-vermilion)';
+      }
+      if (runBtn) runBtn.disabled = true;
+      return;
+    }
+
+    loadedFastaContent = content;
+    if (fastaNameBadge) {
+      let badgeText = `FILE: ${file.name.toUpperCase()} · ${val.numSequences} SEQS · ${val.seqLength} BP`;
+      if (val.warning) {
+        badgeText += ` (⚠️ ${val.warning})`;
+        fastaNameBadge.style.borderColor = 'var(--signal-amber)';
+        fastaNameBadge.style.color = 'var(--signal-amber)';
+      } else {
+        badgeText += ` · ALL DATES DETECTED`;
+        fastaNameBadge.style.borderColor = 'var(--signal-emerald)';
+        fastaNameBadge.style.color = 'var(--text-headline)';
+      }
+      fastaNameBadge.textContent = badgeText;
+      fastaNameBadge.style.display = 'inline-block';
+    }
+    if (runBtn) runBtn.disabled = false;
   };
   reader.readAsText(file);
 }
 
-// Quick demo loading
+// -----------------------------------------------------------------------------
+// Quick Demo Benchmark Loader
+// -----------------------------------------------------------------------------
 window.loadDemoDataset = async function(filename, label) {
   try {
-    statusIndicator.textContent = `⏳ Loading ${label}...`;
+    if (statusIndicator) {
+      statusIndicator.textContent = `LOADING ${label}...`;
+      statusIndicator.style.color = "var(--signal-cobalt)";
+    }
     const res = await fetch(`./sample_data/${filename}`);
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     loadedFastaContent = await res.text();
-    fastaNameBadge.textContent = label;
-    fastaNameBadge.style.display = 'inline-block';
-    statusIndicator.textContent = `⚡ Rust WebAssembly Engine v${version()} Ready`;
+    if (fastaNameBadge) {
+      fastaNameBadge.textContent = label;
+      fastaNameBadge.style.display = 'inline-block';
+    }
+    if (statusIndicator) {
+      statusIndicator.textContent = `RUST WASM ENGINE v${version()} READY`;
+      statusIndicator.style.color = "var(--signal-emerald)";
+    }
     // Proactively run analysis on demo load
     runAnalysis();
   } catch (err) {
@@ -79,33 +244,37 @@ window.loadDemoDataset = async function(filename, label) {
   }
 };
 
-// Run TRACE-5.0 Pipeline
-runBtn.addEventListener('click', runAnalysis);
+// -----------------------------------------------------------------------------
+// Run TRACE-5.0 Surveillance Pipeline
+// -----------------------------------------------------------------------------
+if (runBtn) {
+  runBtn.addEventListener('click', runAnalysis);
+}
 
 async function runAnalysis() {
   if (!wasmReady) {
-    alert("WebAssembly engine is not ready yet.");
+    alert("WebAssembly engine is still initializing. Please wait a moment.");
     return;
   }
   if (!loadedFastaContent || loadedFastaContent.trim().length === 0) {
-    alert("Please select or drop a FASTA sequence file first.");
+    alert("Please select or drop an aligned viral FASTA file first.");
     return;
   }
 
   runBtn.disabled = true;
-  runBtn.innerHTML = `<span>⏳ Analyzing Alignment...</span>`;
+  runBtn.innerHTML = `<span>ANALYZING ALIGNMENT...</span>`;
 
   try {
-    // Gather config from DOM inputs
+    // Gather configuration from input elements
     const config = {
-      mu: parseFloat(document.getElementById('param-mu').value) || 0.002,
-      tau_bar: parseFloat(document.getElementById('param-tau-bar').value) || 1.0,
-      omega: parseFloat(document.getElementById('param-omega').value) || 2.0,
-      t_span: parseFloat(document.getElementById('param-t-span').value) || 20.0,
-      fdr_threshold: parseFloat(document.getElementById('param-fdr').value) || 0.05,
-      alpha_adequacy: parseFloat(document.getElementById('param-adequacy').value) || 0.05,
-      static_distance_threshold: parseFloat(document.getElementById('param-static').value) || 0.015,
-      r0: parseFloat(document.getElementById('param-r0').value) || 1.5
+      mu: parseFloat(document.getElementById('param-mu')?.value) || 0.002,
+      tau_bar: parseFloat(document.getElementById('param-tau-bar')?.value) || 1.0,
+      omega: parseFloat(document.getElementById('param-omega')?.value) || 2.0,
+      t_span: parseFloat(document.getElementById('param-t-span')?.value) || 20.0,
+      fdr_threshold: parseFloat(document.getElementById('param-fdr')?.value) || 0.05,
+      alpha_adequacy: parseFloat(document.getElementById('param-adequacy')?.value) || 0.05,
+      static_distance_threshold: parseFloat(document.getElementById('param-static')?.value) || 0.015,
+      r0: parseFloat(document.getElementById('param-r0')?.value) || 1.5
     };
 
     const startTime = performance.now();
@@ -127,44 +296,63 @@ async function runAnalysis() {
     alert(`Error executing TRACE-5.0 pipeline:\n${err}`);
   } finally {
     runBtn.disabled = false;
-    runBtn.innerHTML = `<span>▶ Run Surveillance Analysis</span>`;
+    runBtn.innerHTML = `<span>RUN SURVEILLANCE ANALYSIS</span>`;
   }
 }
 
-// 1. Render Scorecard KPIs
+// -----------------------------------------------------------------------------
+// 1. Render Scorecard KPIs (Precision Meter Matrix)
+// -----------------------------------------------------------------------------
 function renderScorecard(dossier) {
   const kpi = dossier.kpi;
   const timeMs = dossier.client_elapsed_ms || (dossier.metadata.execution_time_seconds * 1000);
 
-  document.getElementById('kpi-sequences').textContent = kpi.total_sequences;
-  document.getElementById('kpi-sequences-sub').textContent = `Latency: ${timeMs.toFixed(1)} ms`;
+  const elSeq = document.getElementById('kpi-sequences');
+  const elSeqSub = document.getElementById('kpi-sequences-sub');
+  if (elSeq) elSeq.textContent = kpi.total_sequences.toLocaleString();
+  if (elSeqSub) elSeqSub.textContent = `Latency: ${timeMs.toFixed(1)} ms`;
 
-  document.getElementById('kpi-comparisons').textContent = kpi.total_pairwise_comparisons.toLocaleString();
-  document.getElementById('kpi-comparisons-sub').textContent = `${kpi.candidate_pairs_screened} candidate pairs screened`;
+  const elComp = document.getElementById('kpi-comparisons');
+  const elCompSub = document.getElementById('kpi-comparisons-sub');
+  if (elComp) elComp.textContent = kpi.total_pairwise_comparisons.toLocaleString();
+  if (elCompSub) elCompSub.textContent = `${kpi.candidate_pairs_screened} candidate pairs screened`;
 
-  document.getElementById('kpi-edges').textContent = kpi.certified_transmission_edges;
-  document.getElementById('kpi-edges-sub').textContent = `FDR q ≤ ${dossier.metadata.parameters.fdr_threshold}`;
+  const elEdges = document.getElementById('kpi-edges');
+  const elEdgesSub = document.getElementById('kpi-edges-sub');
+  const edgeCount = kpi.supported_transmission_edges != null ? kpi.supported_transmission_edges : (kpi.certified_transmission_edges || 0);
+  if (elEdges) elEdges.textContent = edgeCount.toLocaleString();
+  if (elEdgesSub) elEdgesSub.textContent = `DANNO FDR q ≤ ${dossier.metadata.parameters.fdr_threshold}`;
 
-  document.getElementById('kpi-violations').textContent = kpi.physical_clock_violations_purged;
-  document.getElementById('kpi-violations-sub').textContent = `Clock adequacy p < ${dossier.metadata.parameters.alpha_adequacy} (BF=0)`;
+  const elViol = document.getElementById('kpi-violations');
+  const elViolSub = document.getElementById('kpi-violations-sub');
+  if (elViol) elViol.textContent = kpi.physical_clock_violations_purged.toLocaleString();
+  if (elViolSub) elViolSub.textContent = `Physical adequacy p < ${dossier.metadata.parameters.alpha_adequacy} (BF=0)`;
 
+  const elColl = document.getElementById('kpi-collapse');
+  const elCollSub = document.getElementById('kpi-collapse-sub');
   const redPct = kpi.giant_component_reduction_pct.toFixed(1);
-  document.getElementById('kpi-collapse').textContent = `${redPct}%`;
-  document.getElementById('kpi-collapse-sub').textContent = `Static max ${kpi.static_network.max_cluster_size} → DANNO max ${kpi.danno_network.max_cluster_size}`;
+  if (elColl) elColl.textContent = `${redPct}%`;
+  if (elCollSub) elCollSub.textContent = `Static max ${kpi.static_network.max_cluster_size} → DANNO max ${kpi.danno_network.max_cluster_size}`;
 
+  const elChin = document.getElementById('kpi-chin');
+  const elChinSub = document.getElementById('kpi-chin-sub');
   const nAct = kpi.inferred_active_transmitting_pool;
   const ci = kpi.inferred_active_pool_ci;
-  document.getElementById('kpi-chin').textContent = nAct > 0 ? Math.round(nAct).toLocaleString() : 'N/A';
-  document.getElementById('kpi-chin-sub').textContent = ci ? `95% CrI: [${Math.round(ci[0]).toLocaleString()}, ${Math.round(ci[1]).toLocaleString()}]` : 'Incomplete coverage';
+  if (elChin) elChin.textContent = nAct > 0 ? Math.round(nAct).toLocaleString() : 'N/A';
+  if (elChinSub) elChinSub.textContent = ci ? `95% CrI: [${Math.round(ci[0]).toLocaleString()}, ${Math.round(ci[1]).toLocaleString()}]` : 'Incomplete coverage';
 }
 
-// 2. Tab switching logic
+// -----------------------------------------------------------------------------
+// 2. Tab Navigation & Mode Switching
+// -----------------------------------------------------------------------------
 window.switchTab = function(tabId) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-  document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add('active');
-  document.getElementById(`tab-${tabId}`).classList.add('active');
+  const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+  const activeContent = document.getElementById(`tab-${tabId}`);
+  if (activeBtn) activeBtn.classList.add('active');
+  if (activeContent) activeContent.classList.add('active');
 
   // Redraw SVG if needed
   if (currentDossier) {
@@ -176,16 +364,33 @@ window.switchTab = function(tabId) {
 window.setNetworkMode = function(mode) {
   currentNetworkMode = mode;
   document.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.segmented-btn[data-mode="${mode}"]`).classList.add('active');
+  const activeBtn = document.querySelector(`.segmented-btn[data-mode="${mode}"]`);
+  if (activeBtn) activeBtn.classList.add('active');
   if (currentDossier) renderNetworkGraph(currentDossier);
 };
 
-// 3. Render D3 Force-Directed Network Graph
+window.resetNetworkZoom = function() {
+  if (currentSvgG && currentZoom) {
+    const svg = d3.select('#network-viz svg');
+    svg.transition().duration(400).call(currentZoom.transform, d3.zoomIdentity);
+  }
+};
+
+// -----------------------------------------------------------------------------
+// 3. Render D3 Force-Directed Network Graph (Die Gute Form Architecture)
+// -----------------------------------------------------------------------------
 function renderNetworkGraph(dossier) {
   const container = document.getElementById('network-viz');
+  if (!container) return;
   container.innerHTML = "";
-  const width = container.clientWidth || 900;
-  const height = 520;
+
+  if (currentSimulation) {
+    currentSimulation.stop();
+    currentSimulation = null;
+  }
+
+  const width = container.clientWidth || 920;
+  const height = Math.max(520, container.clientHeight || 520);
 
   const svg = d3.select(container)
     .append("svg")
@@ -193,21 +398,46 @@ function renderNetworkGraph(dossier) {
     .attr("viewBox", [0, 0, width, height]);
 
   const g = svg.append("g");
+  currentSvgG = g;
 
   // Zoom behavior
-  svg.call(d3.zoom()
-    .scaleExtent([0.2, 5])
-    .on("zoom", (event) => g.attr("transform", event.transform)));
+  currentZoom = d3.zoom()
+    .scaleExtent([0.2, 6])
+    .on("zoom", (event) => g.attr("transform", event.transform));
 
-  // Filter edges based on current mode
+  svg.call(currentZoom);
+
+  // Retrieve static distance threshold safely
+  const staticThreshold = (dossier.metadata?.parameters?.static_distance_threshold)
+    ?? (parseFloat(document.getElementById('param-static')?.value) || 0.015);
+  const alphaAdequacy = dossier.metadata?.parameters?.alpha_adequacy ?? 0.05;
+
+  // Filter edges based on network mode
   let filteredEdges = [];
   if (currentNetworkMode === 'danno') {
-    filteredEdges = dossier.edges.filter(e => e.status === 'certified_transmission');
+    filteredEdges = dossier.edges.filter(e => e.status === 'supported_transmission' || e.status === 'certified_transmission');
   } else if (currentNetworkMode === 'violations') {
-    filteredEdges = dossier.edges.filter(e => e.status === 'clock_violation' || e.p_adequacy < dossier.metadata.parameters.alpha_adequacy);
+    filteredEdges = dossier.edges.filter(e => e.status === 'clock_violation' || (e.p_adequacy !== undefined && e.p_adequacy < alphaAdequacy));
   } else {
-    // static 1.5%
-    filteredEdges = dossier.edges.filter(e => e.distance <= dossier.metadata.parameters.static_distance_threshold);
+    // Static mode: All edges satisfying static threshold or flagged is_static
+    filteredEdges = dossier.edges.filter(e => e.is_static || e.distance <= staticThreshold);
+  }
+
+  // Update Live HUD Readout
+  const hudMode = document.getElementById('hud-mode');
+  const hudEdges = document.getElementById('hud-edges');
+  const hudCluster = document.getElementById('hud-cluster');
+  if (hudMode) {
+    hudMode.textContent = currentNetworkMode === 'danno' ? 'DANNO BACKBONE' :
+                          currentNetworkMode === 'violations' ? 'CLOCK VIOLATIONS' : 'STATIC TN93 (1.5%)';
+  }
+  if (hudEdges) hudEdges.textContent = filteredEdges.length;
+  if (hudCluster) {
+    hudCluster.textContent = currentNetworkMode === 'danno'
+      ? `${dossier.kpi.danno_network.max_cluster_size} PATIENTS`
+      : currentNetworkMode === 'violations'
+      ? `${dossier.kpi.physical_clock_violations_purged} PURGED`
+      : `${dossier.kpi.static_network.max_cluster_size} PATIENTS`;
   }
 
   // Deep copy nodes for D3 simulation
@@ -226,21 +456,25 @@ function renderNetworkGraph(dossier) {
         delta_t: e.delta_t_years,
         bf: e.bayes_factor,
         q: e.q_value,
-        status: e.status
+        status: e.status,
+        is_static: e.is_static
       });
     }
   });
 
-  // Color palette for communities
-  const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+  // Disciplined Swiss Categorical Palette
+  const colorScale = d3.scaleOrdinal([
+    "#2563eb", "#059669", "#d97706", "#7c3aed",
+    "#0891b2", "#dc2626", "#4f46e5", "#ca8a04",
+    "#65a30d", "#be185d"
+  ]);
 
-  const simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(d => d.id).distance(50))
-    .force("charge", d3.forceManyBody().strength(-120))
+  currentSimulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d => d.id).distance(55))
+    .force("charge", d3.forceManyBody().strength(-140))
     .force("center", d3.forceCenter(width / 2, height / 2))
-    .force("collision", d3.forceCollide().radius(14));
+    .force("collision", d3.forceCollide().radius(16));
 
-  // Tooltip
   const tooltip = d3.select("#d3-tooltip");
 
   // Render Links
@@ -249,22 +483,32 @@ function renderNetworkGraph(dossier) {
     .data(links)
     .join("line")
     .attr("stroke", d => {
-      if (d.status === 'clock_violation') return "#a855f7"; // Purple for clock violation
-      if (d.status === 'certified_transmission') return "#10b981"; // Green for certified
-      return "#64748b"; // Grey for static noise bridges
+      if (d.status === 'clock_violation') return "var(--signal-vermilion)";
+      if (d.status === 'supported_transmission' || d.status === 'certified_transmission') return "var(--signal-emerald)";
+      return "var(--signal-slate)";
     })
-    .attr("stroke-width", d => d.status === 'certified_transmission' ? 2.5 : 1.2)
+    .attr("stroke-width", d => {
+      if (currentNetworkMode === 'danno') return 2.4;
+      if (d.status === 'supported_transmission' || d.status === 'certified_transmission') return 2.2;
+      if (d.status === 'clock_violation') return 1.8;
+      return 1.0;
+    })
     .attr("stroke-dasharray", d => d.status === 'clock_violation' ? "4,4" : null)
-    .attr("stroke-opacity", 0.7);
+    .attr("stroke-opacity", d => {
+      if (currentNetworkMode === 'static' && d.status !== 'supported_transmission' && d.status !== 'certified_transmission' && d.status !== 'clock_violation') {
+        return 0.55;
+      }
+      return 0.85;
+    });
 
   // Render Nodes
   const node = g.append("g")
     .selectAll("circle")
     .data(nodes)
     .join("circle")
-    .attr("r", 7)
-    .attr("fill", d => colorScale(d.community_id || d.cluster_id_certified || 0))
-    .attr("stroke", "#ffffff")
+    .attr("r", 6.5)
+    .attr("fill", d => colorScale(d.community_id || d.cluster_id_supported || d.cluster_id_certified || 0))
+    .attr("stroke", "var(--bg-canvas)")
     .attr("stroke-width", 1.5)
     .call(d3.drag()
       .on("start", dragstarted)
@@ -274,31 +518,32 @@ function renderNetworkGraph(dossier) {
   node.on("mouseover", (event, d) => {
     tooltip.style("display", "block")
       .html(`
-        <strong>${d.id}</strong><br/>
-        Date: ${d.date ? d.date.toFixed(2) : 'N/A'}<br/>
-        Degree (Certified): ${d.degree_certified || 0}<br/>
-        Degree (Static): ${d.degree_static || 0}<br/>
-        Community: #${d.community_id || 0}
+        <div><strong>ID:</strong> ${d.id}</div>
+        <div><strong>SAMPLING DATE:</strong> ${d.date ? d.date.toFixed(2) : 'N/A'}</div>
+        <div><strong>DEGREE (SUPPORTED):</strong> ${d.degree_supported != null ? d.degree_supported : (d.degree_certified || 0)}</div>
+        <div><strong>DEGREE (STATIC):</strong> ${d.degree_static || 0}</div>
+        <div><strong>COMMUNITY:</strong> #${d.community_id || 0}</div>
+        <div><strong>TIER:</strong> ${d.operational_tier || 'UNASSIGNED'}</div>
       `)
-      .style("left", (event.pageX + 10) + "px")
-      .style("top", (event.pageY - 28) + "px");
+      .style("left", (event.pageX + 12) + "px")
+      .style("top", (event.pageY - 30) + "px");
   }).on("mouseout", () => tooltip.style("display", "none"));
 
   link.on("mouseover", (event, d) => {
     tooltip.style("display", "block")
       .html(`
-        <strong>${d.source.id} ↔ ${d.target.id}</strong><br/>
-        Distance: ${(d.distance * 100).toFixed(2)}%<br/>
-        Delay: ${d.delta_t.toFixed(2)} yr<br/>
-        Bayes Factor: ${d.bf > 0 ? d.bf.toExponential(2) : '0.00'}<br/>
-        FDR q: ${d.q !== undefined ? d.q.toFixed(4) : 'N/A'}<br/>
-        Status: <span style="font-weight:700;">${d.status}</span>
+        <div><strong>DYAD:</strong> ${d.source.id} ↔ ${d.target.id}</div>
+        <div><strong>GENETIC DISTANCE d:</strong> ${(d.distance * 100).toFixed(2)}%</div>
+        <div><strong>SAMPLING DELAY ΔT:</strong> ${d.delta_t.toFixed(2)} yr</div>
+        <div><strong>BAYES FACTOR:</strong> ${d.bf > 0 ? d.bf.toExponential(2) : '0.00'}</div>
+        <div><strong>FDR q:</strong> ${d.q !== undefined ? d.q.toFixed(4) : 'N/A'}</div>
+        <div><strong>STATUS:</strong> <span style="font-weight:700;">${d.status.toUpperCase()}</span></div>
       `)
-      .style("left", (event.pageX + 10) + "px")
-      .style("top", (event.pageY - 28) + "px");
+      .style("left", (event.pageX + 12) + "px")
+      .style("top", (event.pageY - 30) + "px");
   }).on("mouseout", () => tooltip.style("display", "none"));
 
-  simulation.on("tick", () => {
+  currentSimulation.on("tick", () => {
     link
       .attr("x1", d => d.source.x)
       .attr("y1", d => d.source.y)
@@ -311,7 +556,7 @@ function renderNetworkGraph(dossier) {
   });
 
   function dragstarted(event, d) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
+    if (!event.active) currentSimulation.alphaTarget(0.3).restart();
     d.fx = d.x;
     d.fy = d.y;
   }
@@ -320,19 +565,23 @@ function renderNetworkGraph(dossier) {
     d.fy = event.y;
   }
   function dragended(event, d) {
-    if (!event.active) simulation.alphaTarget(0);
+    if (!event.active) currentSimulation.alphaTarget(0);
     d.fx = null;
     d.fy = null;
   }
 }
 
-// 4. Render Phase Space Plot (d vs delta_t)
+// -----------------------------------------------------------------------------
+// 4. Render Phase Space Geometry (d vs. ΔT Cartesian Diagram)
+// -----------------------------------------------------------------------------
 function renderPhaseSpace(dossier) {
   const container = document.getElementById('phasespace-viz');
+  if (!container) return;
   container.innerHTML = "";
-  const width = container.clientWidth || 900;
-  const height = 520;
-  const margin = { top: 30, right: 30, bottom: 50, left: 60 };
+
+  const width = container.clientWidth || 920;
+  const height = Math.max(520, container.clientHeight || 520);
+  const margin = { top: 35, right: 35, bottom: 55, left: 65 };
 
   const svg = d3.select(container)
     .append("svg")
@@ -350,73 +599,106 @@ function renderPhaseSpace(dossier) {
     .domain([0, maxD * 1.05])
     .range([height - margin.bottom, margin.top]);
 
+  // Technical Hairline Grid Lines
+  svg.append("g")
+    .attr("stroke", "var(--plot-grid)")
+    .attr("stroke-width", 1)
+    .selectAll("line")
+    .data(x.ticks(8))
+    .join("line")
+    .attr("x1", d => x(d))
+    .attr("x2", d => x(d))
+    .attr("y1", margin.top)
+    .attr("y2", height - margin.bottom);
+
+  svg.append("g")
+    .attr("stroke", "var(--plot-grid)")
+    .attr("stroke-width", 1)
+    .selectAll("line")
+    .data(y.ticks(6))
+    .join("line")
+    .attr("y1", d => y(d))
+    .attr("y2", d => y(d))
+    .attr("x1", margin.left)
+    .attr("x2", width - margin.right);
+
   // Axes
   svg.append("g")
     .attr("transform", `translate(0,${height - margin.bottom})`)
     .call(d3.axisBottom(x).ticks(8))
-    .attr("color", "#9ca3af");
+    .attr("color", "var(--plot-axis)")
+    .attr("font-family", "var(--font-mono)")
+    .attr("font-size", "11px");
 
   svg.append("text")
     .attr("x", width / 2)
-    .attr("y", height - 12)
-    .attr("fill", "#9ca3af")
+    .attr("y", height - 15)
+    .attr("fill", "var(--text-muted)")
     .attr("text-anchor", "middle")
-    .attr("font-size", "12px")
-    .text("Elapsed Sampling Separation ΔT (years)");
+    .attr("font-family", "var(--font-mono)")
+    .attr("font-size", "11px")
+    .attr("letter-spacing", "0.05em")
+    .text("ELAPSED SAMPLING SEPARATION ΔT (YEARS)");
 
   svg.append("g")
     .attr("transform", `translate(${margin.left},0)`)
     .call(d3.axisLeft(y).tickFormat(d => (d * 100).toFixed(1) + "%"))
-    .attr("color", "#9ca3af");
+    .attr("color", "var(--plot-axis)")
+    .attr("font-family", "var(--font-mono)")
+    .attr("font-size", "11px");
 
   svg.append("text")
     .attr("transform", "rotate(-90)")
     .attr("x", -height / 2)
-    .attr("y", 18)
-    .attr("fill", "#9ca3af")
+    .attr("y", 20)
+    .attr("fill", "var(--text-muted)")
     .attr("text-anchor", "middle")
-    .attr("font-size", "12px")
-    .text("Pairwise Genetic Distance d (subs/site)");
+    .attr("font-family", "var(--font-mono)")
+    .attr("font-size", "11px")
+    .attr("letter-spacing", "0.05em")
+    .text("PAIRWISE GENETIC DIVERGENCE d (SUBS/SITE)");
 
-  // Static threshold lines (1.5% and 0.5%)
+  // Static Threshold Guides (1.5% and 0.5%)
   svg.append("line")
     .attr("x1", margin.left)
     .attr("x2", width - margin.right)
     .attr("y1", y(0.015))
     .attr("y2", y(0.015))
-    .attr("stroke", "#f59e0b")
+    .attr("stroke", "var(--signal-amber)")
     .attr("stroke-dasharray", "4,4")
-    .attr("stroke-width", 1.5);
+    .attr("stroke-width", 1.2);
 
   svg.append("text")
-    .attr("x", width - margin.right - 10)
+    .attr("x", width - margin.right - 8)
     .attr("y", y(0.015) - 6)
-    .attr("fill", "#f59e0b")
-    .attr("font-size", "11px")
+    .attr("fill", "var(--signal-amber)")
+    .attr("font-family", "var(--font-mono)")
+    .attr("font-size", "10px")
     .attr("text-anchor", "end")
-    .text("Standard TN93 (1.5%)");
+    .text("LEGACY STATIC TN93 CEILING (1.5%)");
 
   svg.append("line")
     .attr("x1", margin.left)
     .attr("x2", width - margin.right)
     .attr("y1", y(0.005))
     .attr("y2", y(0.005))
-    .attr("stroke", "#ef4444")
+    .attr("stroke", "var(--signal-vermilion)")
     .attr("stroke-dasharray", "3,3")
     .attr("stroke-width", 1.2);
 
   svg.append("text")
-    .attr("x", width - margin.right - 10)
+    .attr("x", width - margin.right - 8)
     .attr("y", y(0.005) - 6)
-    .attr("fill", "#ef4444")
-    .attr("font-size", "11px")
+    .attr("fill", "var(--signal-vermilion)")
+    .attr("font-family", "var(--font-mono)")
+    .attr("font-size", "10px")
     .attr("text-anchor", "end")
-    .text("CDC Priority (0.5%)");
+    .text("CDC PRIORITY CLUSTER CEILING (0.5%)");
 
-  // Dynamic molecular clock corridor curve: E[d | dt] = 2*mu*tau_bar + mu*dt
+  // Dynamic Molecular Clock Corridor: E[d | dt] = 2*mu*tau_bar + mu*dt
   const mu = dossier.metadata.parameters.mu;
   const tau_bar = dossier.metadata.parameters.tau_bar;
-  const corridorData = d3.range(0, maxDt, 0.1).map(dt => ({
+  const corridorData = d3.range(0, maxDt * 1.05, 0.1).map(dt => ({
     dt: dt,
     d: 2 * mu * tau_bar + mu * dt
   }));
@@ -428,16 +710,18 @@ function renderPhaseSpace(dossier) {
   svg.append("path")
     .datum(corridorData)
     .attr("fill", "none")
-    .attr("stroke", "#3b82f6")
-    .attr("stroke-width", 2.5)
+    .attr("stroke", "var(--signal-cobalt)")
+    .attr("stroke-width", 2.2)
     .attr("d", lineGen);
 
   svg.append("text")
-    .attr("x", x(maxDt * 0.7))
-    .attr("y", y(2 * mu * tau_bar + mu * (maxDt * 0.7)) - 8)
-    .attr("fill", "#60a5fa")
-    .attr("font-size", "11px")
-    .text("Dynamic Clock Corridor E[d | ΔT]");
+    .attr("x", x(maxDt * 0.65))
+    .attr("y", y(2 * mu * tau_bar + mu * (maxDt * 0.65)) - 8)
+    .attr("fill", "var(--signal-cobalt)")
+    .attr("font-family", "var(--font-mono)")
+    .attr("font-size", "10.5px")
+    .attr("font-weight", "700")
+    .text("DYNAMIC CLOCK CORRIDOR E[d | ΔT]");
 
   // Plot Dyad Points
   const tooltip = d3.select("#d3-tooltip");
@@ -448,39 +732,42 @@ function renderPhaseSpace(dossier) {
     .join("circle")
     .attr("cx", d => x(d.delta_t_years))
     .attr("cy", d => y(d.distance))
-    .attr("r", 5.5)
+    .attr("r", 5)
     .attr("fill", d => {
-      if (d.status === 'clock_violation') return "#a855f7";
-      if (d.status === 'certified_transmission') return "#10b981";
-      return "#6b7280";
+      if (d.status === 'clock_violation') return "var(--signal-vermilion)";
+      if (d.status === 'supported_transmission' || d.status === 'certified_transmission') return "var(--signal-emerald)";
+      return "var(--signal-slate)";
     })
-    .attr("stroke", "#ffffff")
+    .attr("stroke", "var(--bg-canvas)")
     .attr("stroke-width", 1)
     .on("mouseover", (event, d) => {
       tooltip.style("display", "block")
         .html(`
-          <strong>${d.source} ↔ ${d.target}</strong><br/>
-          Distance: ${(d.distance * 100).toFixed(3)}%<br/>
-          Elapsed Delay: ${d.delta_t_years.toFixed(2)} yr<br/>
-          Substitutions K: ${d.k_substitutions.toFixed(0)}<br/>
-          Bayes Factor: ${d.bayes_factor > 0 ? d.bayes_factor.toExponential(2) : '0.00'}<br/>
-          Clock Adequacy p: ${d.p_adequacy.toExponential(3)}<br/>
-          Status: <strong>${d.status}</strong>
+          <div><strong>DYAD:</strong> ${d.source} ↔ ${d.target}</div>
+          <div><strong>DISTANCE d:</strong> ${(d.distance * 100).toFixed(3)}%</div>
+          <div><strong>DELAY ΔT:</strong> ${d.delta_t_years.toFixed(2)} yr</div>
+          <div><strong>SUBSTITUTIONS K:</strong> ${d.k_substitutions.toFixed(0)}</div>
+          <div><strong>BAYES FACTOR:</strong> ${d.bayes_factor > 0 ? d.bayes_factor.toExponential(2) : '0.00'}</div>
+          <div><strong>CLOCK ADEQUACY p:</strong> ${d.p_adequacy.toExponential(3)}</div>
+          <div><strong>STATUS:</strong> <span style="font-weight:700;">${d.status.toUpperCase()}</span></div>
         `)
-        .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY - 28) + "px");
+        .style("left", (event.pageX + 12) + "px")
+        .style("top", (event.pageY - 30) + "px");
     })
     .on("mouseout", () => tooltip.style("display", "none"));
 }
 
-// 5. Render Communities
+// -----------------------------------------------------------------------------
+// 5. Render STEVE Communities
+// -----------------------------------------------------------------------------
 function renderCommunities(dossier) {
   const container = document.getElementById('comm-container');
+  if (!container) return;
   container.innerHTML = "";
 
   const comms = dossier.communities || [];
   if (comms.length === 0) {
-    container.innerHTML = `<p style="color:var(--text-muted); padding:1rem;">No multi-isolate communities resolved.</p>`;
+    container.innerHTML = `<p style="color:var(--text-muted); padding:1rem; font-family:var(--font-mono); font-size:0.8rem;">No multi-isolate communities resolved.</p>`;
     return;
   }
 
@@ -495,62 +782,95 @@ function renderCommunities(dossier) {
 
     card.innerHTML = `
       <div class="comm-header">
-        <span style="font-weight:700; color:var(--text-primary);">Community #${c.community_id} (${c.size} patients)</span>
+        <span style="font-weight:700; font-family:var(--font-mono); font-size:0.8rem; color:var(--text-headline);">
+          COMMUNITY #${c.community_id} [${c.size} PATIENTS]
+        </span>
         <span class="tier-badge ${tierClass}">${c.operational_tier}</span>
       </div>
-      <div style="font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:0.25rem;">
-        <div>Evolutionary Velocity μ: <strong style="color:var(--text-primary);">${(c.mu * 1000).toFixed(2)} subs/kb/yr</strong></div>
-        <div>Clock Linearity R²: <strong style="color:var(--text-primary);">${c.r_squared.toFixed(3)}</strong></div>
-        <div>Emergence Horizon t_MRCA: <strong style="color:var(--text-primary);">${c.tmrca > 0 ? c.tmrca.toFixed(1) : 'Unidentifiable'}</strong></div>
-        <div>Fieller Bound: <span style="font-family:var(--font-mono); font-size:0.75rem;">${c.fieller_status}</span></div>
+      <div style="font-size:0.75rem; font-family:var(--font-mono); color:var(--text-muted); display:flex; flex-direction:column; gap:0.35rem;">
+        <div>VELOCITY μ: <strong style="color:var(--text-headline);">${(c.mu * 1000).toFixed(2)} subs/kb/yr</strong></div>
+        <div>CLOCK LINEARITY R²: <strong style="color:var(--text-headline);">${c.r_squared.toFixed(3)}</strong></div>
+        <div>EMERGENCE HORIZON t_MRCA: <strong style="color:var(--text-headline);">${c.tmrca > 0 ? c.tmrca.toFixed(1) : 'UNIDENTIFIABLE'}</strong></div>
+        <div>FIELLER BOUND: <span>${c.fieller_status}</span></div>
       </div>
     `;
     container.appendChild(card);
   });
 }
 
+// -----------------------------------------------------------------------------
 // 6. Render Macro Scaling (CHIN)
+// -----------------------------------------------------------------------------
 function renderMacroScaling(dossier) {
   const macro = dossier.macro_scaling;
   const container = document.getElementById('macro-container');
+  if (!container) return;
   if (!macro) {
-    container.innerHTML = `<p style="color:var(--text-muted);">Macro-epidemic scaling not available for this alignment size.</p>`;
+    container.innerHTML = `<p style="color:var(--text-muted); font-family:var(--font-mono); font-size:0.8rem;">Macro-epidemic scaling not available for this alignment size.</p>`;
     return;
   }
 
   container.innerHTML = `
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
-      <div class="card" style="background:var(--bg-secondary);">
+    <div class="macro-grid">
+      <div class="macro-panel">
         <span class="kpi-label">Active Transmitting Pool (N_act)</span>
-        <span class="kpi-value" style="color:var(--accent-cyan);">${Math.round(macro.active_population.n_act).toLocaleString()}</span>
+        <span class="kpi-value" style="color:var(--signal-cobalt); font-size:1.6rem;">${Math.round(macro.active_population.n_act).toLocaleString()}</span>
         <span class="kpi-sub">95% CrI: [${Math.round(macro.active_population.ci_lower).toLocaleString()}, ${Math.round(macro.active_population.ci_upper).toLocaleString()}]</span>
       </div>
-      <div class="card" style="background:var(--bg-secondary);">
+      <div class="macro-panel">
         <span class="kpi-label">Surveillance Sampling Fraction (ρ)</span>
-        <span class="kpi-value" style="color:var(--accent-green);">${(macro.surveillance_coverage_rho * 100).toFixed(2)}%</span>
+        <span class="kpi-value" style="color:var(--signal-emerald); font-size:1.6rem;">${(macro.surveillance_coverage_rho * 100).toFixed(2)}%</span>
         <span class="kpi-sub">Assumed basic R₀ = ${macro.active_population.r0.toFixed(1)}</span>
       </div>
-      <div class="card" style="background:var(--bg-secondary);">
+      <div class="macro-panel">
         <span class="kpi-label">Borel Branching Decay</span>
-        <span class="kpi-value" style="color:var(--accent-amber);">${macro.borel_decay.rejects_uniform_sampling ? 'Supercritical Spread' : 'Controlled Decay'}</span>
-        <span class="kpi-sub">Max observed cluster size: ${macro.borel_decay.max_cluster_size}</span>
+        <span class="kpi-value" style="color:var(--signal-amber); font-size:1.6rem;">${macro.borel_decay.rejects_uniform_sampling ? 'Supercritical Spread' : 'Controlled Decay'}</span>
+        <span class="kpi-sub">Max cluster size: ${macro.borel_decay.max_cluster_size}</span>
       </div>
     </div>
-    <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.6; background:var(--bg-secondary); padding:1.25rem; border-radius:var(--radius-md); border:1px solid var(--border-color);">
-      <strong>CHIN Macro-Epidemic Inversion Principle:</strong><br/>
+    <div class="macro-principle-card">
+      <strong style="color:var(--text-headline); font-family:var(--font-mono); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">CHIN Macro-Epidemic Inversion Principle</strong><br/>
       While sampling individual clinical cases scales linearly with surveillance coverage (E[n] = M · ρ), capturing direct transmission dyads requires sampling both partners independently (E[E] = (M - 1) · ρ²). By inverting this quadratic collision law under Negative Binomial contact heterogeneity, TRACE-5.0 sizes the unobserved iceberg of active community transmission directly from observed cluster collisions in seconds.
     </div>
   `;
 }
 
-// 7. Render Data Table
+// -----------------------------------------------------------------------------
+// 7. Render Dyad Table & Live Filter
+// -----------------------------------------------------------------------------
+let allRenderedEdges = [];
+
 function renderTable(dossier) {
+  allRenderedEdges = dossier.edges || [];
+  filterTable();
+}
+
+window.filterTable = function() {
+  const query = (document.getElementById('table-search')?.value || "").toLowerCase().trim();
   const tbody = document.getElementById('table-body');
+  const countLabel = document.getElementById('table-row-count');
+  if (!tbody) return;
   tbody.innerHTML = "";
 
-  const edges = dossier.edges || [];
-  edges.forEach(e => {
+  const filtered = allRenderedEdges.filter(e => {
+    if (!query) return true;
+    return e.source.toLowerCase().includes(query) ||
+           e.target.toLowerCase().includes(query) ||
+           e.status.toLowerCase().includes(query);
+  });
+
+  if (countLabel) {
+    countLabel.textContent = `Showing ${filtered.length} of ${allRenderedEdges.length} dyads`;
+  }
+
+  filtered.forEach(e => {
     const tr = document.createElement('tr');
+    const isSupported = e.status === 'supported_transmission' || e.status === 'certified_transmission';
+    const statusColor = isSupported ? 'var(--signal-emerald)' :
+                        e.status === 'clock_violation' ? 'var(--signal-vermilion)' : 'var(--text-muted)';
+    const statusText = isSupported ? 'SUPPORTED' :
+                       e.status === 'clock_violation' ? 'CLOCK VIOLATION' :
+                       e.status.replace(/_/g, ' ').toUpperCase();
     tr.innerHTML = `
       <td>${e.source}</td>
       <td>${e.target}</td>
@@ -560,13 +880,15 @@ function renderTable(dossier) {
       <td>${e.bayes_factor > 0 ? e.bayes_factor.toExponential(2) : '0.00'}</td>
       <td>${e.q_value !== undefined ? e.q_value.toFixed(4) : 'N/A'}</td>
       <td>${e.p_adequacy.toExponential(2)}</td>
-      <td><span style="font-weight:600; color:${e.status === 'certified_transmission' ? '#34d399' : (e.status === 'clock_violation' ? '#c084fc' : '#9ca3af')}">${e.status}</span></td>
+      <td><span style="font-weight:700; color:${statusColor}">${statusText}</span></td>
     `;
     tbody.appendChild(tr);
   });
-}
+};
 
-// 8. Export Utilities
+// -----------------------------------------------------------------------------
+// 8. Export Utilities (CSV & JSON)
+// -----------------------------------------------------------------------------
 window.exportEdgesCsv = function() {
   if (!currentDossier || !currentDossier.edges) return;
   const headers = ["source", "target", "distance", "delta_t_years", "k_substitutions", "bayes_factor", "q_value", "p_adequacy", "status"];
@@ -574,7 +896,7 @@ window.exportEdgesCsv = function() {
     e.source, e.target, e.distance, e.delta_t_years, e.k_substitutions, e.bayes_factor, e.q_value, e.p_adequacy, e.status
   ]);
   const csvContent = [headers.join(",")].concat(rows.map(r => r.join(","))).join("\n");
-  downloadBlob(csvContent, "trace50_certified_edges.csv", "text/csv");
+  downloadBlob(csvContent, "trace50_supported_edges.csv", "text/csv");
 };
 
 window.exportDossierJson = function() {
@@ -595,5 +917,7 @@ function downloadBlob(content, filename, contentType) {
   URL.revokeObjectURL(url);
 }
 
-// Start WebAssembly engine on page load
+// -----------------------------------------------------------------------------
+// Initialize System
+// -----------------------------------------------------------------------------
 setupWasm();

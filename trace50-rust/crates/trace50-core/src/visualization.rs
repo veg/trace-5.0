@@ -42,6 +42,12 @@ pub struct DossierParameters {
     pub fdr_threshold: f64,
     pub alpha_adequacy: f64,
     pub r0: f64,
+    #[serde(default = "default_static_threshold")]
+    pub static_distance_threshold: f64,
+}
+
+fn default_static_threshold() -> f64 {
+    0.015
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +56,8 @@ pub struct DossierKpi {
     pub total_pairwise_comparisons: usize,
     pub candidate_pairs_screened: usize,
     pub physical_clock_violations_purged: usize,
+    pub supported_transmission_edges: usize,
+    #[serde(default)]
     pub certified_transmission_edges: usize,
     pub static_network: NetworkSummary,
     pub danno_network: NetworkSummary,
@@ -72,8 +80,12 @@ pub struct DossierNode {
     pub index: usize,
     pub date: f64,
     pub degree_static: usize,
+    pub degree_supported: usize,
+    #[serde(default)]
     pub degree_certified: usize,
     pub cluster_id_static: usize,
+    pub cluster_id_supported: usize,
+    #[serde(default)]
     pub cluster_id_certified: usize,
     pub community_id: usize,
     pub operational_tier: String,
@@ -93,6 +105,8 @@ pub struct DossierEdge {
     pub q_value: f64,
     pub p_adequacy: f64,
     pub status: String,
+    #[serde(default)]
+    pub is_static: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

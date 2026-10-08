@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,24 +20,24 @@
       <div class="brand-text">
         <h1>
           TRACE-5.0
-          <span class="version-tag">WebAssembly v5.0.0</span>
+          <span class="version-tag">RUST / WASM v5.0.0</span>
         </h1>
-        <p>Pairwise Coalescent Odds (DANNO) · Spectral Velocity (STEVE) · Quadratic Scaling (CHIN)</p>
+        <p>COALESCENT ODDS (DANNO) · SPECTRAL VELOCITY (STEVE) · QUADRATIC SCALING (CHIN)</p>
       </div>
     </div>
     <div class="header-badges">
       <div class="badge-privacy">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-        </svg>
-        100% Client-Side WebAssembly (Zero Server Transmission)
+        <span class="led-indicator"></span>
+        100% CLIENT-SIDE WASM (ZERO SERVER TRANSMISSION)
       </div>
+      <button class="btn-theme" id="btn-theme-toggle" onclick="toggleTheme()">
+        <span id="theme-label">THEME: DUNKEL</span>
+      </button>
       <a href="https://github.com/veg/trace-5.0" target="_blank" rel="noopener" class="btn-github">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
         </svg>
-        GitHub
+        GITHUB
       </a>
     </div>
   </header>
@@ -45,222 +45,270 @@
   <!-- Main Container -->
   <main>
 
-    <!-- Top Grid: Alignment Input & Parameter Controls -->
-    <div class="grid-top">
+    <!-- SECTION 01: Ingestion & Hyperparameter Calibration -->
+    <div>
+      <div class="section-meta">SECTION 01 / SEQUENCE INGESTION & CALIBRATION</div>
+      <div class="grid-top">
 
-      <!-- Alignment Dropzone & Demos -->
-      <div class="card">
-        <div class="card-title">
-          <span>Aligned FASTA Ingestion</span>
-          <span id="wasm-status" style="font-size:0.775rem; font-family:var(--font-mono); color:var(--accent-amber);">
-            ⏳ Initializing WebAssembly...
-          </span>
+        <!-- Alignment Dropzone & Demos -->
+        <div class="card">
+          <div class="card-title">
+            <span>Aligned FASTA Ingestion</span>
+            <span id="wasm-status" style="font-size:0.7rem; font-family:var(--font-mono); color:var(--signal-amber);">
+              INITIALIZING WASM ENGINE...
+            </span>
+          </div>
+
+          <input type="file" id="fasta-input" accept=".fasta,.fa,.fna,.txt" style="display:none;">
+          <div class="dropzone" id="dropzone">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p><strong>Click to browse</strong> or drag & drop aligned viral FASTA file</p>
+            <p class="sub-text">Expected: Pre-aligned nucleotide sequences with ISO or decimal dates in headers</p>
+            <span id="fasta-name-badge" style="display:none;"></span>
+          </div>
+
+          <div class="demo-bar">
+            <span>Benchmark Demos:</span>
+            <button class="btn-demo" onclick="loadDemoDataset('demo_outbreak.fasta', 'DEMO 1: OUTBREAK & CLOCK VIOLATIONS (10 SEQS)')">
+              DEMO 1: OUTBREAK & CLOCK VIOLATIONS
+            </button>
+            <button class="btn-demo" onclick="loadDemoDataset('sample_micro_outbreak.fasta', 'DEMO 2: MICRO-OUTBREAK (6 SEQS)')">
+              DEMO 2: MICRO-OUTBREAK
+            </button>
+          </div>
+
+          <!-- Input Format Specifications (Die Gute Form Technical Manual) -->
+          <div class="format-spec-card">
+            <div class="format-spec-header">
+              <span class="format-spec-title">INPUT FORMAT SPECIFICATIONS</span>
+              <span class="format-spec-badge">ALIGNED FASTA REQUIRED</span>
+            </div>
+            <div class="format-spec-body">
+              <div class="format-spec-item">
+                <span class="spec-label">SEQUENCE ALIGNMENT:</span>
+                <span class="spec-desc">Multiple sequence alignment in FASTA format. All sequences must share identical aligned length (e.g. 1,000 bp in HIV-1 <em>pol</em>). Standard IUPAC ambiguity codes supported (R, Y, S, W, K, M, B, D, H, V, N).</span>
+              </div>
+              <div class="format-spec-item">
+                <span class="spec-label">SAMPLE HEADER CONVENTION:</span>
+                <span class="spec-desc">Taxon identifiers must encode specimen collection date, separated by pipe (<code>|</code>) or underscore (<code>_</code>):</span>
+              </div>
+              <div class="format-spec-code">&gt;PATIENT_001|2021-04-15    (ISO 8601 YYYY-MM-DD or YYYY-MM)
+&gt;PATIENT_002|2022.35       (Decimal calendar year)
+&gt;ISOLATE_03_2019-11-02     (Underscore delimiter)
+ACGT...                    (Identical length across all entries)</div>
+              <div class="format-spec-footer">
+                Collection dates calibrate the dynamic molecular clock corridor and purge unevolved archival repeats (BF = 0).
+              </div>
+            </div>
+          </div>
         </div>
 
-        <input type="file" id="fasta-input" accept=".fasta,.fa,.fna,.txt" style="display:none;">
-        <div class="dropzone" id="dropzone">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-          </svg>
-          <p><strong>Click to browse</strong> or drag & drop aligned viral FASTA file</p>
-          <span id="fasta-name-badge" class="version-tag" style="display:none; margin-top:0.5rem; background:rgba(59,130,246,0.2); color:#60a5fa;"></span>
-        </div>
+        <!-- Surveillance Hyperparameters & Run Trigger -->
+        <div class="card">
+          <div class="card-title">
+            <span>Surveillance Hyperparameters</span>
+            <span style="font-size:0.7rem; font-family:var(--font-mono); color:var(--text-muted);">PHYSICAL COALESCENT & CLOCK CONTROLS</span>
+          </div>
 
-        <div class="demo-bar">
-          <span>Quick Benchmark Demos:</span>
-          <button class="btn-demo" onclick="loadDemoDataset('demo_outbreak.fasta', 'Demo 1: Acute Outbreak vs. Clock Violations (10 seqs)')">
-            ⚡ Demo 1: Outbreak & Clock Violations
+          <div class="params-grid">
+            <div class="param-group">
+              <label for="param-mu">Clock Rate μ (subs/site/yr)</label>
+              <input type="number" id="param-mu" step="0.0005" value="0.002">
+            </div>
+            <div class="param-group">
+              <label for="param-tau-bar">Ancestral Depth τ̄ (yr)</label>
+              <input type="number" id="param-tau-bar" step="0.1" value="1.0">
+            </div>
+            <div class="param-group">
+              <label for="param-omega">Sampling Delay ω (yr)</label>
+              <input type="number" id="param-omega" step="0.5" value="2.0">
+            </div>
+            <div class="param-group">
+              <label for="param-t-span">Registry Span T_span (yr)</label>
+              <input type="number" id="param-t-span" step="1.0" value="20.0">
+            </div>
+            <div class="param-group">
+              <label for="param-fdr">DANNO FDR q-value</label>
+              <input type="number" id="param-fdr" step="0.01" value="0.05">
+            </div>
+            <div class="param-group">
+              <label for="param-adequacy">Clock Adequacy α_adeq</label>
+              <input type="number" id="param-adequacy" step="0.01" value="0.05">
+            </div>
+            <div class="param-group">
+              <label for="param-static">Legacy TN93 Ceiling (d)</label>
+              <input type="number" id="param-static" step="0.005" value="0.015">
+            </div>
+            <div class="param-group">
+              <label for="param-r0">Basic R₀ (CHIN Sizing)</label>
+              <input type="number" id="param-r0" step="0.1" value="1.5">
+            </div>
+          </div>
+
+          <button class="btn-run" id="btn-run" disabled>
+            <span>RUN SURVEILLANCE ANALYSIS</span>
           </button>
-          <button class="btn-demo" onclick="loadDemoDataset('sample_micro_outbreak.fasta', 'Demo 2: Micro Outbreak (6 seqs)')">
-            ⚡ Demo 2: Micro Outbreak
-          </button>
-        </div>
-      </div>
-
-      <!-- Surveillance Parameters & Run Trigger -->
-      <div class="card">
-        <div class="card-title">
-          <span>Surveillance Hyperparameters</span>
-          <span style="font-size:0.75rem; color:var(--text-muted);">Physical Coalescent & Clock Defaults</span>
         </div>
 
-        <div class="params-grid">
-          <div class="param-group">
-            <label for="param-mu">Clock Rate μ (subs/site/yr)</label>
-            <input type="number" id="param-mu" step="0.0005" value="0.002">
-          </div>
-          <div class="param-group">
-            <label for="param-tau-bar">Ancestral Depth τ̄ (yr)</label>
-            <input type="number" id="param-tau-bar" step="0.1" value="1.0">
-          </div>
-          <div class="param-group">
-            <label for="param-omega">Sampling Delay ω (yr)</label>
-            <input type="number" id="param-omega" step="0.5" value="2.0">
-          </div>
-          <div class="param-group">
-            <label for="param-t-span">Registry Span T_span (yr)</label>
-            <input type="number" id="param-t-span" step="1.0" value="20.0">
-          </div>
-          <div class="param-group">
-            <label for="param-fdr">DANNO FDR q-value</label>
-            <input type="number" id="param-fdr" step="0.01" value="0.05">
-          </div>
-          <div class="param-group">
-            <label for="param-adequacy">Clock Adequacy α_adeq</label>
-            <input type="number" id="param-adequacy" step="0.01" value="0.05">
-          </div>
-          <div class="param-group">
-            <label for="param-static">Legacy TN93 Ceiling</label>
-            <input type="number" id="param-static" step="0.005" value="0.015">
-          </div>
-          <div class="param-group">
-            <label for="param-r0">Basic R₀ (CHIN Sizing)</label>
-            <input type="number" id="param-r0" step="0.1" value="1.5">
-          </div>
-        </div>
-
-        <button class="btn-run" id="btn-run" disabled>
-          <span>▶ Run Surveillance Analysis</span>
-        </button>
-      </div>
-
-    </div>
-
-    <!-- Executive Outbreak Triage Scorecard (KPI Cards) -->
-    <div class="kpi-row">
-      <div class="kpi-card kpi-blue">
-        <span class="kpi-label">Sequences Analyzed</span>
-        <span class="kpi-value" id="kpi-sequences">0</span>
-        <span class="kpi-sub" id="kpi-sequences-sub">Latency: 0.0 ms</span>
-      </div>
-      <div class="kpi-card kpi-purple">
-        <span class="kpi-label">Pairwise Comparisons</span>
-        <span class="kpi-value" id="kpi-comparisons">0</span>
-        <span class="kpi-sub" id="kpi-comparisons-sub">Screened across registry</span>
-      </div>
-      <div class="kpi-card kpi-green">
-        <span class="kpi-label">Certified Transmission Edges</span>
-        <span class="kpi-value" id="kpi-edges">0</span>
-        <span class="kpi-sub" id="kpi-edges-sub">DANNO FDR q ≤ 0.05</span>
-      </div>
-      <div class="kpi-card kpi-amber">
-        <span class="kpi-label">Clock Violations Purged</span>
-        <span class="kpi-value" id="kpi-violations">0</span>
-        <span class="kpi-sub" id="kpi-violations-sub">Stagnant repeats (BF = 0)</span>
-      </div>
-      <div class="kpi-card kpi-red">
-        <span class="kpi-label">Megacluster Collapse</span>
-        <span class="kpi-value" id="kpi-collapse">0.0%</span>
-        <span class="kpi-sub" id="kpi-collapse-sub">Giant component deconstruction</span>
-      </div>
-      <div class="kpi-card kpi-cyan">
-        <span class="kpi-label">Active Transmitting Pool</span>
-        <span class="kpi-value" id="kpi-chin">0</span>
-        <span class="kpi-sub" id="kpi-chin-sub">CHIN Macro-Epidemic Sizing</span>
       </div>
     </div>
 
-    <!-- Interactive Visualizations Workspace -->
-    <div class="workspace-card">
-
-      <!-- Tab Navigation Header -->
-      <div class="tab-header">
-        <button class="tab-btn active" data-tab="network" onclick="switchTab('network')">
-          🌐 1. Transmission Network Graph
-        </button>
-        <button class="tab-btn" data-tab="phasespace" onclick="switchTab('phasespace')">
-          📐 2. Phase Space Geometry (d vs. ΔT)
-        </button>
-        <button class="tab-btn" data-tab="velocity" onclick="switchTab('velocity')">
-          ⚡ 3. Evolutionary Velocity (STEVE)
-        </button>
-        <button class="tab-btn" data-tab="macro" onclick="switchTab('macro')">
-          🏔️ 4. Macro-Epidemic Scale (CHIN)
-        </button>
-        <button class="tab-btn" data-tab="table" onclick="switchTab('table')">
-          📋 5. Certified Dyad Table & Export
-        </button>
+    <!-- SECTION 02: Surveillance Scorecard (KPIs) -->
+    <div>
+      <div class="section-meta">SECTION 02 / SURVEILLANCE SCORECARD</div>
+      <div class="kpi-row">
+        <div class="kpi-card kpi-cobalt">
+          <span class="kpi-label">Sequences Ingested</span>
+          <span class="kpi-value" id="kpi-sequences">0</span>
+          <span class="kpi-sub" id="kpi-sequences-sub">Latency: 0.0 ms</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Pairwise Comparisons</span>
+          <span class="kpi-value" id="kpi-comparisons">0</span>
+          <span class="kpi-sub" id="kpi-comparisons-sub">Screened across registry</span>
+        </div>
+        <div class="kpi-card kpi-emerald">
+          <span class="kpi-label">Supported Transmission Links</span>
+          <span class="kpi-value" id="kpi-edges">0</span>
+          <span class="kpi-sub" id="kpi-edges-sub">DANNO FDR q ≤ 0.05</span>
+        </div>
+        <div class="kpi-card kpi-vermilion">
+          <span class="kpi-label">Clock Violations Purged</span>
+          <span class="kpi-value" id="kpi-violations">0</span>
+          <span class="kpi-sub" id="kpi-violations-sub">Stagnant repeats (BF = 0)</span>
+        </div>
+        <div class="kpi-card kpi-amber">
+          <span class="kpi-label">Megacluster Contraction</span>
+          <span class="kpi-value" id="kpi-collapse">0.0%</span>
+          <span class="kpi-sub" id="kpi-collapse-sub">Giant component collapse</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Active Transmitting Pool</span>
+          <span class="kpi-value" id="kpi-chin">0</span>
+          <span class="kpi-sub" id="kpi-chin-sub">CHIN Macro-Epidemic Sizing</span>
+        </div>
       </div>
+    </div>
 
-      <!-- Tab 1: Transmission Network Graph -->
-      <div class="tab-content active" id="tab-network">
-        <div class="graph-toolbar">
-          <div class="segmented-control">
-            <button class="segmented-btn active" data-mode="danno" onclick="setNetworkMode('danno')">
-              DANNO Certified Backbone (q ≤ 0.05)
+    <!-- SECTION 03: Multi-Scale Analytical Workbench -->
+    <div>
+      <div class="section-meta">SECTION 03 / MULTI-SCALE ANALYTICAL WORKBENCH</div>
+      <div class="workspace-card">
+
+        <!-- Tab Navigation Header -->
+        <div class="tab-header">
+          <button class="tab-btn active" data-tab="network" onclick="switchTab('network')">
+            01 TRANSMISSION NETWORK
+          </button>
+          <button class="tab-btn" data-tab="phasespace" onclick="switchTab('phasespace')">
+            02 PHASE SPACE GEOMETRY
+          </button>
+          <button class="tab-btn" data-tab="velocity" onclick="switchTab('velocity')">
+            03 EVOLUTIONARY VELOCITY (STEVE)
+          </button>
+          <button class="tab-btn" data-tab="macro" onclick="switchTab('macro')">
+            04 MACRO-EPIDEMIC SCALE (CHIN)
+          </button>
+          <button class="tab-btn" data-tab="table" onclick="switchTab('table')">
+            05 CERTIFIED DYAD MATRIX & EXPORT
+          </button>
+        </div>
+
+        <!-- Tab 1: Transmission Network Graph -->
+        <div class="tab-content active" id="tab-network">
+          <div class="graph-toolbar">
+            <div class="segmented-control">
+              <button class="segmented-btn active" data-mode="danno" onclick="setNetworkMode('danno')">
+                DANNO CERTIFIED BACKBONE (q ≤ 0.05)
+              </button>
+              <button class="segmented-btn" data-mode="static" onclick="setNetworkMode('static')">
+                LEGACY STATIC TN93 (1.5%) HAIRBALL
+              </button>
+              <button class="segmented-btn" data-mode="violations" onclick="setNetworkMode('violations')">
+                STAGNANT CLOCK VIOLATIONS (BF = 0)
+              </button>
+            </div>
+            <div class="network-hud" id="network-hud">
+              <span class="hud-item">MODE: <strong id="hud-mode">DANNO BACKBONE</strong></span>
+              <span class="hud-item">EDGES: <strong id="hud-edges">0</strong></span>
+              <span class="hud-item">MAX CLUSTER: <strong id="hud-cluster">0</strong></span>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              <button class="btn-demo" onclick="resetNetworkZoom()">RESET VIEW</button>
+            </div>
+          </div>
+          <div class="viz-container" id="network-viz"></div>
+        </div>
+
+        <!-- Tab 2: Phase Space Geometry -->
+        <div class="tab-content" id="tab-phasespace">
+          <div class="graph-toolbar">
+            <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-body);">
+              Dynamic Transmission Corridor <strong style="color:var(--signal-cobalt);">E[d | ΔT]</strong> vs. Legacy Static Ceilings (0.5% and 1.5%)
+            </div>
+            <div class="network-hud">
+              <span class="hud-item" style="color:var(--signal-emerald);">● Certified Dyads</span>
+              <span class="hud-item" style="color:var(--signal-slate);">● Static Noise Bridges</span>
+              <span class="hud-item" style="color:var(--signal-vermilion);">◆ Clock Violations</span>
+            </div>
+          </div>
+          <div class="viz-container" id="phasespace-viz"></div>
+        </div>
+
+        <!-- Tab 3: Evolutionary Velocity (STEVE) -->
+        <div class="tab-content" id="tab-velocity">
+          <div style="margin-bottom:1rem; font-size:0.8rem; font-family:var(--font-mono); color:var(--text-muted);">
+            SPECTRAL COMMUNITY DECONVOLUTION: Partitioned via recursive graph Laplacian Fiedler Cheeger cuts, evaluated with Student's t clock regressions and Fieller emergence intervals.
+          </div>
+          <div class="comm-grid" id="comm-container"></div>
+        </div>
+
+        <!-- Tab 4: Macro-Epidemic Scale (CHIN) -->
+        <div class="tab-content" id="tab-macro">
+          <div id="macro-container"></div>
+        </div>
+
+        <!-- Tab 5: Dyad Analysis Table & Export -->
+        <div class="tab-content" id="tab-table">
+          <div class="table-filter-bar">
+            <input type="text" id="table-search" class="table-filter-input" placeholder="Filter sequences, status, or values..." oninput="filterTable()">
+            <div style="font-size:0.725rem; font-family:var(--font-mono); color:var(--text-muted);" id="table-row-count">
+              Showing 0 dyads
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Sequence A</th>
+                  <th>Sequence B</th>
+                  <th>Distance (d)</th>
+                  <th>Delay (ΔT yr)</th>
+                  <th>Substitutions (K)</th>
+                  <th>Bayes Factor</th>
+                  <th>FDR q-value</th>
+                  <th>Adequacy (p)</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+          <div class="export-bar">
+            <button class="btn-export" onclick="exportEdgesCsv()">
+              DOWNLOAD EDGES (CSV)
             </button>
-            <button class="segmented-btn" data-mode="static" onclick="setNetworkMode('static')">
-              Legacy Static TN93 (1.5%) Hairball
-            </button>
-            <button class="segmented-btn" data-mode="violations" onclick="setNetworkMode('violations')">
-              Stagnant Clock Violations (BF=0)
+            <button class="btn-export" onclick="exportDossierJson()">
+              DOWNLOAD FULL DOSSIER (JSON)
             </button>
           </div>
-          <span style="font-size:0.8rem; color:var(--text-muted);">
-            Scroll to zoom · Drag nodes to reposition · Hover for pair metrics
-          </span>
         </div>
-        <div class="viz-container" id="network-viz"></div>
-      </div>
 
-      <!-- Tab 2: Phase Space Geometry -->
-      <div class="tab-content" id="tab-phasespace">
-        <div class="graph-toolbar">
-          <span style="font-size:0.825rem; color:var(--text-secondary);">
-            Dynamic Transmission Corridor <strong style="color:#60a5fa;">E[d | ΔT]</strong> vs. Legacy Distance Ceilings (0.5% and 1.5%)
-          </span>
-          <span style="font-size:0.775rem; color:var(--text-muted);">
-            Green: Certified Dyads · Grey: Noise Floor Bridges · Purple: Clock Violations
-          </span>
-        </div>
-        <div class="viz-container" id="phasespace-viz"></div>
       </div>
-
-      <!-- Tab 3: Evolutionary Velocity (STEVE) -->
-      <div class="tab-content" id="tab-velocity">
-        <div style="margin-bottom:1rem; font-size:0.85rem; color:var(--text-secondary);">
-          <strong>Spectral Community Deconvolution:</strong> Communities discovered via recursive graph Laplacian Fiedler cuts, evaluated under Student's t regressions and Fieller emergence bounds.
-        </div>
-        <div class="comm-grid" id="comm-container"></div>
-      </div>
-
-      <!-- Tab 4: Macro-Epidemic Scale (CHIN) -->
-      <div class="tab-content" id="tab-macro">
-        <div id="macro-container"></div>
-      </div>
-
-      <!-- Tab 5: Certified Dyad Table & Export -->
-      <div class="tab-content" id="tab-table">
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Sequence A</th>
-                <th>Sequence B</th>
-                <th>Distance (d)</th>
-                <th>Delay (ΔT yr)</th>
-                <th>Substitutions (K)</th>
-                <th>Bayes Factor</th>
-                <th>FDR q-value</th>
-                <th>Adequacy (p)</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="table-body"></tbody>
-          </table>
-        </div>
-        <div class="export-bar">
-          <button class="btn-export" onclick="exportEdgesCsv()">
-            📥 Download Certified Edges (CSV)
-          </button>
-          <button class="btn-export" onclick="exportDossierJson()">
-            📥 Download Full Dossier (JSON)
-          </button>
-        </div>
-      </div>
-
     </div>
 
   </main>
@@ -270,8 +318,8 @@
 
   <!-- Footer -->
   <footer>
-    TRACE-5.0: Molecular Transmission Surveillance Engine · Published by Sergei L. Kosakovsky Pond & Steven Weaver ·
-    <a href="https://github.com/veg/trace-5.0" target="_blank" rel="noopener" style="color:var(--accent-blue); text-decoration:none;">GitHub Repository</a> ·
+    TRACE-5.0: Molecular Transmission Surveillance Engine · Sergei L. Kosakovsky Pond & Steven Weaver ·
+    <a href="https://github.com/veg/trace-5.0" target="_blank" rel="noopener">GitHub Repository</a> ·
     Virus Evolution (2026)
   </footer>
 

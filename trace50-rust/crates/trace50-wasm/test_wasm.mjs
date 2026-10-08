@@ -110,7 +110,7 @@ TGCATGCATGCATGCATGCATGCATGCATGCT
     console.log(`  Dossier schema version: ${dossier.schema_version}`);
     console.log(`  Sequences evaluated: ${dossier.metadata.num_sequences}`);
     console.log(`  Total pairwise comparisons: ${dossier.kpi.total_pairwise_comparisons}`);
-    console.log(`  Certified transmission edges: ${dossier.kpi.certified_transmission_edges}`);
+    console.log(`  Supported transmission edges: ${dossier.kpi.supported_transmission_edges || dossier.kpi.certified_transmission_edges}`);
     console.log(`  Static network giant component: ${dossier.kpi.static_network.max_cluster_size}`);
     console.log(`  DANNO transmission clusters: ${dossier.kpi.danno_network.total_clusters}`);
     console.log(`  Active transmitting pool N_act: ${dossier.kpi.inferred_active_transmitting_pool.toFixed(1)}`);

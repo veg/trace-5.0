@@ -326,12 +326,12 @@ fn main() {
 
     let nodes_csv = args.out_dir.join("patient_surveillance_assignments.csv");
     let mut nodes_file = File::create(&nodes_csv).expect("Failed to create nodes CSV");
-    writeln!(nodes_file, "taxon_id,date,degree_static,degree_certified,cluster_static,cluster_certified,community_id,operational_tier").unwrap();
+    writeln!(nodes_file, "taxon_id,date,degree_static,degree_supported,cluster_static,cluster_supported,community_id,operational_tier").unwrap();
     for n in &dossier.nodes {
         writeln!(
             nodes_file,
             "{},{:.2},{},{},{},{},{},\"{}\"",
-            n.id, n.date, n.degree_static, n.degree_certified, n.cluster_id_static, n.cluster_id_certified, n.community_id, n.operational_tier
+            n.id, n.date, n.degree_static, n.degree_supported, n.cluster_id_static, n.cluster_id_supported, n.community_id, n.operational_tier
         ).unwrap();
     }
 
@@ -343,7 +343,7 @@ fn main() {
     println!(" Total Pairwise Comparisons:           {}", dossier.kpi.total_pairwise_comparisons);
     println!(" Candidate Dyads Screened:             {}", dossier.kpi.candidate_pairs_screened);
     println!(" Clock Violations Purged (Wo Fat):     {}", dossier.kpi.physical_clock_violations_purged);
-    println!(" Certified Transmission Edges:         {} (FDR q <= {})", dossier.kpi.certified_transmission_edges, config.fdr_threshold);
+    println!(" Supported Transmission Edges:         {} (FDR q <= {})", dossier.kpi.supported_transmission_edges, config.fdr_threshold);
     println!("--------------------------------------------------------------------------------");
     println!(" Static Distance Benchmark (d <= {:.1}%):", config.static_distance_threshold * 100.0);
     println!("   - Total Clusters:                   {}", dossier.kpi.static_network.total_clusters);

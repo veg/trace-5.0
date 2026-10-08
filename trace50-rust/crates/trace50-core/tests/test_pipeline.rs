@@ -28,10 +28,18 @@ TGCATGCATGCATGCATGCATGCATGCATGCT
     assert!(dossier.kpi.total_pairwise_comparisons == 10);
     assert!(dossier.macro_scaling.composite_parameter_theta >= 0.0);
 
+    assert_eq!(dossier.metadata.parameters.static_distance_threshold, 0.05);
+    for e in &dossier.edges {
+        if e.distance <= 0.05 {
+            assert!(e.is_static);
+        }
+    }
+
     // Verify JSON serialization
     let json_str = serde_json::to_string_pretty(&dossier).expect("Serialization failed");
     assert!(json_str.contains("schema_version"));
     assert!(json_str.contains("TRACE-5.0 (Rust Kernel)"));
+    assert!(json_str.contains("static_distance_threshold"));
     assert!(json_str.contains("macro_scaling"));
     assert!(json_str.contains("phase_space_points"));
 }

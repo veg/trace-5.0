@@ -10,7 +10,7 @@
 //! 7. Full self-contained Visualization Dossier JSON generation.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::autoclock::recursive_autoclock_deconvolution;
 use crate::chin::ChinEstimator;
@@ -164,26 +164,31 @@ pub fn run_trace50(
         for (rank, cand) in dyads.iter_mut().enumerate() {
             cum_pep += cand.pep;
             cand.q_value = (cum_pep / ((rank + 1) as f64)).min(1.0);
-            cand.is_certified = !cand.is_clock_violation && (cand.q_value <= config.fdr_threshold);
+            cand.is_supported = !cand.is_clock_violation && (cand.q_value <= config.fdr_threshold);
+            cand.is_certified = cand.is_supported;
         }
     }
 
-    // Partition dyads into certified transmissions vs clock violations vs uncertified
-    let mut certified_edges = Vec::new();
-    let mut degree_certified = vec![0usize; n];
+    // Partition dyads into supported transmissions vs clock violations vs uncertified
+    let mut supported_edges = Vec::new();
+    let mut degree_supported = vec![0usize; n];
     let mut clock_violations_count = 0usize;
     let mut dossier_edges = Vec::new();
     let mut phase_points = Vec::new();
+    let mut seen_pairs = HashSet::new();
 
     for d in &dyads {
+        let is_static_edge = d.dist <= config.static_distance_threshold;
         let status = if d.is_clock_violation {
             clock_violations_count += 1;
             "clock_violation".to_string()
-        } else if d.is_certified {
-            certified_edges.push((d.idx1, d.idx2, d.dist));
-            degree_certified[d.idx1] += 1;
-            degree_certified[d.idx2] += 1;
-            "certified_transmission".to_string()
+        } else if d.is_supported {
+            supported_edges.push((d.idx1, d.idx2, d.dist));
+            degree_supported[d.idx1] += 1;
+            degree_supported[d.idx2] += 1;
+            "supported_transmission".to_string()
+        } else if is_static_edge {
+            "static_noise_bridge".to_string()
         } else {
             "unsupported_candidate".to_string()
         };
@@ -193,6 +198,8 @@ pub fn run_trace50(
             delta_t: d.delta_t,
             status: status.clone(),
         });
+
+        seen_pairs.insert((d.idx1.min(d.idx2), d.idx1.max(d.idx2)));
 
         dossier_edges.push(DossierEdge {
             source: alignment.headers[d.idx1].clone(),
@@ -207,16 +214,58 @@ pub fn run_trace50(
             q_value: d.q_value,
             p_adequacy: d.p_adequacy,
             status,
+            is_static: is_static_edge,
         });
     }
 
-    // Extract certified clusters
-    let (certified_clusters, certified_cluster_assign, certified_giant_size) =
-        extract_clusters(n, &certified_edges, &dates);
-    let certified_clustered_count = certified_cluster_assign.iter().filter(|&&c| c > 0).count();
+    // Ensure all static network edges (distance <= static_distance_threshold) are present in dossier_edges
+    for &(i, j, dist) in &static_edges {
+        let p_pair = (i.min(j), i.max(j));
+        if !seen_pairs.contains(&p_pair) {
+            seen_pairs.insert(p_pair);
+            let dt = (dates[i] - dates[j]).abs();
+            let k = (dist * (l as f64)).max(0.0);
+            let (p_adeq, is_adequate) = danno.check_clock_adequacy(k, dt, None);
+            let bf = if is_adequate { danno.compute_bayes_factor(dist, dt) } else { 0.0 };
+            let pep = if bf > 0.0 { 1.0 / (1.0 + config.prior_odds * bf) } else { 1.0 };
+            let status = if !is_adequate {
+                clock_violations_count += 1;
+                "clock_violation".to_string()
+            } else {
+                "static_noise_bridge".to_string()
+            };
+
+            phase_points.push(DossierPhasePoint {
+                dist,
+                delta_t: dt,
+                status: status.clone(),
+            });
+
+            dossier_edges.push(DossierEdge {
+                source: alignment.headers[i].clone(),
+                target: alignment.headers[j].clone(),
+                source_idx: i,
+                target_idx: j,
+                distance: dist,
+                delta_t_years: dt,
+                k_substitutions: k,
+                bayes_factor: bf,
+                pep,
+                q_value: 1.0,
+                p_adequacy: p_adeq,
+                status,
+                is_static: true,
+            });
+        }
+    }
+
+    // Extract supported clusters
+    let (supported_clusters, supported_cluster_assign, supported_giant_size) =
+        extract_clusters(n, &supported_edges, &dates);
+    let supported_clustered_count = supported_cluster_assign.iter().filter(|&&c| c > 0).count();
 
     let reduction_pct = if static_giant_size > 0 {
-        ((static_giant_size as f64 - certified_giant_size as f64) / (static_giant_size as f64)) * 100.0
+        ((static_giant_size as f64 - supported_giant_size as f64) / (static_giant_size as f64)) * 100.0
     } else {
         0.0
     };
@@ -247,17 +296,17 @@ pub fn run_trace50(
 
     // 6. CHIN Macro-Epidemic Parameter Estimation
     let chin = ChinEstimator::new(config.r0);
-    let e_certified = certified_edges.len();
-    let theta = chin.estimate_composite_parameter(n, e_certified);
-    let rho = chin.estimate_sampling_fraction(n, e_certified, Some(config.r0));
-    let active_pop = chin.estimate_active_population(n, e_certified, Some(config.r0), 0.95);
-    let bayesian_mcmc = if n > 0 && e_certified > 0 {
-        chin.run_joint_bayesian_monte_carlo(n, e_certified, 10_000, (1.2, 2.0), (0.1, 0.5), (0.0, 0.40), 42).ok()
+    let e_supported = supported_edges.len();
+    let theta = chin.estimate_composite_parameter(n, e_supported);
+    let rho = chin.estimate_sampling_fraction(n, e_supported, Some(config.r0));
+    let active_pop = chin.estimate_active_population(n, e_supported, Some(config.r0), 0.95);
+    let bayesian_mcmc = if n > 0 && e_supported > 0 {
+        chin.run_joint_bayesian_monte_carlo(n, e_supported, 10_000, (1.2, 2.0), (0.1, 0.5), (0.0, 0.40), 42).ok()
     } else {
         None
     };
 
-    let cluster_sizes: Vec<usize> = certified_clusters.iter().map(|c| c.size).collect();
+    let cluster_sizes: Vec<usize> = supported_clusters.iter().map(|c| c.size).collect();
     let borel_decay = chin.test_borel_branching_decay(&cluster_sizes, 12);
 
     // Compute Borel spectrum histogram
@@ -282,16 +331,18 @@ pub fn run_trace50(
             index: i,
             date: dates[i],
             degree_static: degree_static[i],
-            degree_certified: degree_certified[i],
+            degree_supported: degree_supported[i],
+            degree_certified: degree_supported[i],
             cluster_id_static: static_cluster_assign[i],
-            cluster_id_certified: certified_cluster_assign[i],
+            cluster_id_supported: supported_cluster_assign[i],
+            cluster_id_certified: supported_cluster_assign[i],
             community_id: comm_id,
             operational_tier: tier,
         });
     }
 
     // Assemble Dossier Clusters
-    let dossier_clusters: Vec<DossierCluster> = certified_clusters
+    let dossier_clusters: Vec<DossierCluster> = supported_clusters
         .into_iter()
         .map(|c| DossierCluster {
             cluster_id: c.cluster_id,
@@ -323,6 +374,7 @@ pub fn run_trace50(
                 fdr_threshold: config.fdr_threshold,
                 alpha_adequacy: config.alpha_adequacy,
                 r0: config.r0,
+                static_distance_threshold: config.static_distance_threshold,
             },
         },
         kpi: DossierKpi {
@@ -330,7 +382,8 @@ pub fn run_trace50(
             total_pairwise_comparisons: n * (n - 1) / 2,
             candidate_pairs_screened: dyads.len(),
             physical_clock_violations_purged: clock_violations_count,
-            certified_transmission_edges: e_certified,
+            supported_transmission_edges: e_supported,
+            certified_transmission_edges: e_supported,
             static_network: NetworkSummary {
                 total_clusters: static_clusters.len(),
                 clustered_individuals: static_clustered_count,
@@ -338,8 +391,8 @@ pub fn run_trace50(
             },
             danno_network: NetworkSummary {
                 total_clusters: dossier_clusters.len(),
-                clustered_individuals: certified_clustered_count,
-                max_cluster_size: certified_giant_size,
+                clustered_individuals: supported_clustered_count,
+                max_cluster_size: supported_giant_size,
             },
             giant_component_reduction_pct: reduction_pct,
             inferred_active_transmitting_pool: active_pop.n_act,
