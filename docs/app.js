@@ -1,4 +1,4 @@
-import init, { run_trace50_pipeline, version } from './pkg/trace50_wasm.js';
+import init, { run_trace50_pipeline, run_trace50_pipeline_with_progress, version } from './pkg/trace50_wasm.js';
 
 const EMBEDDED_DEMO_OUTBREAK = `>USA_2015_01|2015.0
 GAAAGGTACAACAAGCAGTATGAATAAATGTGCTACTGTGGAAAAAAAGAAAATGGAGAATGCGTGAAAAATTAGCTCAAGAGTCATCAAAGTCACTCTTACGCAGACCTTACATTAGGAGCGCAAATTTAATTACAGGACCATCACGAATGCCAAAGAAAGATTAAGAATGCTTAACCCGGTACATAACCAATCTCATTTTTACACAATATCCTTCGAATGCGAGCTATAAGGAATAGGCGCTAGACGAAGACTTAAATTTAATGGTGATAGTAAACAGGAGACTTACAAGGAGCCAATTCTGAAATTTTAAATTCGATTTTTAGATTTTATATTATCATAAAATTAGCTCTATATAACGAGCCGAGATCGGGAAGAATGAACCAACTGTGACAACGGCCACTTAACGATGGAAAACTACGAGCAGAGGACATCAATCTGTGTTGGCTCTGCAAGGCGAAAAACAAGGACCCACTGGTGCAAGTTCGCGAACAAGCACAGACGAGACAAAAGAGTAAACTAGTGGTAAAAGGAGGAGGATTAAAGTCGAGGAGTGATTACACATTATGTGCGTATCCCGATTATACGAATAATATGAATAGCGGGCTAAGAGCCCGAGAAAAACGAACGTCAAAAAACATCGATCTGCCAATCTCAGAAGATAGGTACCCTTAGGGTAAGAAAACGAAGGCGTTGGTCCGTGAAAGGAAGGTCCAACAAATTGTTGAAGCGTAGGCAAAGTAGATTCCAATCCTGCCAAGGGACTCGATGAACCATTCATCGCATTACCTCTTATCTCTAAGTCACACCCAAGGAGAGGTCGTTCACGTTCCCGCGACTAGGTTTCAGGTAAGTTGCAGTCGTATAAACGTAATGATACAAATTGACAGGCATACCAGGTATGAGGGAGCTATGAGGGGGTGTGACGGAAGAACTCTTATCTGAATATTGTTTATACCGGGTTAAATGTAATTACATACATACGGTCGACACCTAACTT
@@ -295,6 +295,181 @@ window.loadDemoDataset = async function(filename, label) {
 };
 
 // -----------------------------------------------------------------------------
+// Real-Time Progress Monitor & Web Worker Management
+// -----------------------------------------------------------------------------
+let currentWorker = null;
+let timerInterval = null;
+let progressStartTime = 0;
+
+const STAGE_LABELS = {
+  'STAGE_ALIGNMENT': { title: 'STAGE 1/7: INGESTING ALIGNMENT & TEMPORAL CALIBRATION', stepId: 'step-alignment' },
+  'STAGE_TN93': { title: 'STAGE 2/7: COMPUTING PAIRWISE TN93 DISTANCE MATRIX', stepId: 'step-tn93' },
+  'STAGE_STATIC': { title: 'STAGE 3/7: BENCHMARKING LEGACY STATIC NETWORK', stepId: 'step-static' },
+  'STAGE_DANNO': { title: 'STAGE 4/7: EVALUATING DANNO BAYES FACTORS & CLOCK ADEQUACY', stepId: 'step-danno' },
+  'STAGE_STEVE': { title: 'STAGE 5/7: DECONSTRUCTING SPECTRAL COMMUNITIES (STEVE)', stepId: 'step-steve' },
+  'STAGE_CHIN': { title: 'STAGE 6/7: INVERTING MACRO POPULATION SCALING (CHIN)', stepId: 'step-chin' },
+  'STAGE_DOSSIER': { title: 'STAGE 7/7: ASSEMBLING VISUALIZATION DOSSIER', stepId: 'step-dossier' },
+  'STAGE_COMPLETE': { title: 'SURVEILLANCE ANALYSIS COMPLETE', stepId: 'step-dossier' },
+};
+
+const STEP_ORDER = [
+  'step-alignment',
+  'step-tn93',
+  'step-static',
+  'step-danno',
+  'step-steve',
+  'step-chin',
+  'step-dossier'
+];
+
+function formatElapsed(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  const tenths = Math.floor((ms % 1000) / 100);
+  return `ELAPSED: ${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${tenths}`;
+}
+
+function showProgressMonitor() {
+  const container = document.getElementById('progress-container');
+  if (container) container.style.display = 'block';
+
+  const fill = document.getElementById('progress-bar-fill');
+  if (fill) {
+    fill.style.width = '2%';
+    fill.className = 'progress-bar-fill';
+  }
+
+  const dot = document.getElementById('progress-pulse-dot');
+  if (dot) dot.className = 'progress-pulse-dot';
+
+  const pctEl = document.getElementById('progress-percent');
+  if (pctEl) pctEl.textContent = '0%';
+
+  const titleEl = document.getElementById('progress-stage-title');
+  if (titleEl) titleEl.textContent = 'SURVEILLANCE ANALYSIS INITIALIZING...';
+
+  const detailEl = document.getElementById('progress-detail');
+  if (detailEl) detailEl.textContent = 'Ingesting alignment and calibrating molecular clock parameters...';
+
+  STEP_ORDER.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'step-item';
+  });
+
+  progressStartTime = performance.now();
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const elapsedEl = document.getElementById('progress-elapsed');
+    if (elapsedEl) {
+      elapsedEl.textContent = formatElapsed(performance.now() - progressStartTime);
+    }
+  }, 100);
+}
+
+function updateProgress(stage, pct, detail) {
+  const fill = document.getElementById('progress-bar-fill');
+  const pctEl = document.getElementById('progress-percent');
+  const titleEl = document.getElementById('progress-stage-title');
+  const detailEl = document.getElementById('progress-detail');
+
+  const pVal = Math.min(100, Math.max(0, pct * 100));
+  if (fill) fill.style.width = `${pVal.toFixed(1)}%`;
+  if (pctEl) pctEl.textContent = `${Math.round(pVal)}%`;
+
+  const info = STAGE_LABELS[stage] || { title: stage, stepId: null };
+  if (titleEl) titleEl.textContent = info.title;
+  if (detailEl && detail) detailEl.textContent = detail;
+
+  if (info.stepId) {
+    const curIdx = STEP_ORDER.indexOf(info.stepId);
+    if (curIdx >= 0) {
+      STEP_ORDER.forEach((id, idx) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (idx < curIdx) {
+          el.className = 'step-item done';
+        } else if (idx === curIdx) {
+          el.className = 'step-item active';
+        } else {
+          el.className = 'step-item';
+        }
+      });
+    }
+  }
+}
+
+function completeProgressMonitor(elapsedMs) {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  const fill = document.getElementById('progress-bar-fill');
+  if (fill) {
+    fill.style.width = '100%';
+    fill.classList.add('success');
+  }
+
+  const pctEl = document.getElementById('progress-percent');
+  if (pctEl) pctEl.textContent = '100%';
+
+  const dot = document.getElementById('progress-pulse-dot');
+  if (dot) dot.className = 'progress-pulse-dot success';
+
+  const titleEl = document.getElementById('progress-stage-title');
+  if (titleEl) titleEl.textContent = 'SURVEILLANCE ANALYSIS COMPLETE';
+
+  const detailEl = document.getElementById('progress-detail');
+  if (detailEl) detailEl.textContent = `All transmission networks deconstructed in ${(elapsedMs / 1000).toFixed(1)}s.`;
+
+  STEP_ORDER.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'step-item done';
+  });
+}
+
+function abortProgressMonitor(reason) {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  const fill = document.getElementById('progress-bar-fill');
+  if (fill) fill.classList.add('aborted');
+
+  const dot = document.getElementById('progress-pulse-dot');
+  if (dot) dot.className = 'progress-pulse-dot aborted';
+
+  const titleEl = document.getElementById('progress-stage-title');
+  if (titleEl) titleEl.textContent = 'ANALYSIS ABORTED';
+
+  const detailEl = document.getElementById('progress-detail');
+  if (detailEl) detailEl.textContent = reason || 'Execution terminated by investigator.';
+
+  setTimeout(() => {
+    const container = document.getElementById('progress-container');
+    if (container) container.style.display = 'none';
+  }, 2500);
+}
+
+// Abort Button Handler
+const abortBtn = document.getElementById('btn-abort');
+if (abortBtn) {
+  abortBtn.addEventListener('click', () => {
+    if (currentWorker) {
+      currentWorker.terminate();
+      currentWorker = null;
+    }
+    abortProgressMonitor('Analysis aborted by investigator.');
+    if (runBtn) {
+      runBtn.disabled = false;
+      runBtn.innerHTML = `<span>RUN SURVEILLANCE ANALYSIS</span>`;
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
 // Run TRACE-5.0 Surveillance Pipeline
 // -----------------------------------------------------------------------------
 if (runBtn) {
@@ -313,43 +488,108 @@ async function runAnalysis() {
 
   runBtn.disabled = true;
   runBtn.innerHTML = `<span>ANALYZING ALIGNMENT...</span>`;
+  showProgressMonitor();
 
-  try {
-    // Gather configuration from input elements
-    const tSpan = parseFloat(document.getElementById('param-t-span')?.value) || 20.0;
-    const config = {
-      mu: parseFloat(document.getElementById('param-mu')?.value) || 0.002,
-      tau_bar: parseFloat(document.getElementById('param-tau-bar')?.value) || 1.0,
-      omega: parseFloat(document.getElementById('param-omega')?.value) || 2.0,
-      t_span: tSpan,
-      fdr_threshold: parseFloat(document.getElementById('param-fdr')?.value) || 0.05,
-      alpha_adequacy: parseFloat(document.getElementById('param-adequacy')?.value) || 0.05,
-      static_distance_threshold: parseFloat(document.getElementById('param-static')?.value) || 0.015,
-      r0: parseFloat(document.getElementById('param-r0')?.value) || 1.5,
-      max_delta_t: tSpan
-    };
+  // Gather configuration from input elements
+  const tSpan = parseFloat(document.getElementById('param-t-span')?.value) || 20.0;
+  const config = {
+    mu: parseFloat(document.getElementById('param-mu')?.value) || 0.002,
+    tau_bar: parseFloat(document.getElementById('param-tau-bar')?.value) || 1.0,
+    omega: parseFloat(document.getElementById('param-omega')?.value) || 2.0,
+    t_span: tSpan,
+    fdr_threshold: parseFloat(document.getElementById('param-fdr')?.value) || 0.05,
+    alpha_adequacy: parseFloat(document.getElementById('param-adequacy')?.value) || 0.05,
+    static_distance_threshold: parseFloat(document.getElementById('param-static')?.value) || 0.015,
+    r0: parseFloat(document.getElementById('param-r0')?.value) || 1.5,
+    max_delta_t: tSpan
+  };
 
-    const startTime = performance.now();
-    const resultJson = run_trace50_pipeline(loadedFastaContent, JSON.stringify(config));
-    const elapsedMs = performance.now() - startTime;
+  // 1. Try running in Web Worker for responsive, non-blocking execution
+  if (typeof Worker !== 'undefined') {
+    try {
+      const worker = new Worker('./worker.js', { type: 'module' });
+      currentWorker = worker;
+      const startTime = performance.now();
 
-    currentDossier = JSON.parse(resultJson);
-    currentDossier.client_elapsed_ms = elapsedMs;
+      worker.onmessage = (e) => {
+        const data = e.data;
+        if (data.type === 'progress') {
+          updateProgress(data.stage, data.pct, data.detail);
+        } else if (data.type === 'done') {
+          const elapsedMs = performance.now() - startTime;
+          completeProgressMonitor(elapsedMs);
+          currentWorker = null;
 
-    renderScorecard(currentDossier);
-    renderNetworkGraph(currentDossier);
-    renderPhaseSpace(currentDossier);
-    renderCommunities(currentDossier);
-    renderMacroScaling(currentDossier);
-    renderTable(currentDossier);
+          currentDossier = JSON.parse(data.resultJson);
+          currentDossier.client_elapsed_ms = elapsedMs;
 
-  } catch (err) {
-    console.error("TRACE-5.0 Execution Error:", err);
-    alert(`Error executing TRACE-5.0 pipeline:\n${err}`);
-  } finally {
-    runBtn.disabled = false;
-    runBtn.innerHTML = `<span>RUN SURVEILLANCE ANALYSIS</span>`;
+          renderScorecard(currentDossier);
+          renderNetworkGraph(currentDossier);
+          renderPhaseSpace(currentDossier);
+          renderCommunities(currentDossier);
+          renderMacroScaling(currentDossier);
+          renderTable(currentDossier);
+
+          runBtn.disabled = false;
+          runBtn.innerHTML = `<span>RUN SURVEILLANCE ANALYSIS</span>`;
+        } else if (data.type === 'error') {
+          currentWorker = null;
+          abortProgressMonitor(data.error);
+          runBtn.disabled = false;
+          runBtn.innerHTML = `<span>RUN SURVEILLANCE ANALYSIS</span>`;
+          alert(`Pipeline execution error:\n${data.error}`);
+        }
+      };
+
+      worker.onerror = (err) => {
+        console.warn("Worker execution error, falling back to main thread:", err);
+        currentWorker = null;
+        runAnalysisMainThread(config);
+      };
+
+      worker.postMessage({ type: 'run', fasta: loadedFastaContent, config });
+      return;
+    } catch (workerErr) {
+      console.warn("Could not instantiate Web Worker (e.g. file:// protocol restriction). Using main thread fallback:", workerErr);
+    }
   }
+
+  // 2. Fallback to main thread execution
+  runAnalysisMainThread(config);
+}
+
+function runAnalysisMainThread(config) {
+  // Yield to the browser event loop using setTimeout so the progress monitor renders
+  setTimeout(() => {
+    const startTime = performance.now();
+    try {
+      const resultJson = run_trace50_pipeline_with_progress(
+        loadedFastaContent,
+        JSON.stringify(config),
+        (stage, pct, detail) => {
+          updateProgress(stage, pct, detail);
+        }
+      );
+      const elapsedMs = performance.now() - startTime;
+      completeProgressMonitor(elapsedMs);
+
+      currentDossier = JSON.parse(resultJson);
+      currentDossier.client_elapsed_ms = elapsedMs;
+
+      renderScorecard(currentDossier);
+      renderNetworkGraph(currentDossier);
+      renderPhaseSpace(currentDossier);
+      renderCommunities(currentDossier);
+      renderMacroScaling(currentDossier);
+      renderTable(currentDossier);
+    } catch (err) {
+      abortProgressMonitor(err.message || String(err));
+      alert(`Error executing TRACE-5.0 pipeline:\n${err}`);
+    } finally {
+      runBtn.disabled = false;
+      runBtn.innerHTML = `<span>RUN SURVEILLANCE ANALYSIS</span>`;
+    }
+  }, 40);
 }
 
 // -----------------------------------------------------------------------------

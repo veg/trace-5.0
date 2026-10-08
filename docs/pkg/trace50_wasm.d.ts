@@ -44,6 +44,13 @@ export function run_trace50_object(fasta_content: string, config_val: any): any;
 export function run_trace50_pipeline(fasta_content: string, config_json?: string | null): string;
 
 /**
+ * Runs the complete, end-to-end TRACE-5.0 surveillance pipeline from a FASTA string
+ * and optional JSON configuration string, providing real-time progress callbacks to JavaScript.
+ * Callback signature: `on_progress(stage: string, percent: number, detail: string)`
+ */
+export function run_trace50_pipeline_with_progress(fasta_content: string, config_json?: string | null, progress_callback?: Function | null): string;
+
+/**
  * Returns the TRACE-5.0 engine version.
  */
 export function version(): string;
@@ -60,11 +67,14 @@ export interface InitOutput {
     readonly run_chin_bayesian_mcmc: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number];
     readonly run_trace50_object: (a: number, b: number, c: any) => [number, number, number];
     readonly run_trace50_pipeline: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly run_trace50_pipeline_with_progress: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly version: () => [number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
-    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_exn_store: (a: number) => void;
+    readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
+    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_start: () => void;
 }

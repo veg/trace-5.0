@@ -61,11 +61,16 @@ impl Default for Trace50Config {
     }
 }
 
-/// Executes the end-to-end TRACE-5.0 surveillance pipeline.
-pub fn run_trace50(
+/// Executes the end-to-end TRACE-5.0 surveillance pipeline with progress notifications.
+/// `on_progress(stage_name, progress_fraction [0.0..1.0], detail_message)`
+pub fn run_trace50_with_progress<F>(
     alignment: &Alignment,
     config: &Trace50Config,
-) -> Result<VisualizationDossier, String> {
+    mut on_progress: F,
+) -> Result<VisualizationDossier, String>
+where
+    F: FnMut(&str, f64, &str),
+{
     #[cfg(not(target_arch = "wasm32"))]
     let start_time = std::time::Instant::now();
     let n = alignment.num_sequences();
@@ -74,6 +79,8 @@ pub fn run_trace50(
     if n < 2 {
         return Err("TRACE-5.0 requires at least 2 sequences to evaluate transmission networks".to_string());
     }
+
+    on_progress("STAGE_ALIGNMENT", 0.05, &format!("Ingested {} sequences ({} sites)", n, l));
 
     // 1. Process dates: impute median for any NaN
     let mut valid_dates: Vec<f64> = alignment.dates.iter().copied().filter(|d| d.is_finite()).collect();
@@ -96,10 +103,16 @@ pub fn run_trace50(
     }
     let time_span_years = if date_max >= date_min { date_max - date_min } else { 0.0 };
 
-    // 2. Compute pairwise TN93 distance matrix
-    let d_matrix = alignment.compute_distance_matrix();
+    // 2. Compute pairwise TN93 distance matrix with progress
+    let total_pairs = n * (n.saturating_sub(1)) / 2;
+    on_progress("STAGE_TN93", 0.08, &format!("Computing {} pairwise TN93 distances...", total_pairs));
+    let d_matrix = alignment.compute_distance_matrix_with_progress(|done, total, frac| {
+        let p = 0.08 + 0.67 * frac;
+        on_progress("STAGE_TN93", p, &format!("{}/{} comparisons ({:.1}%)", done, total, frac * 100.0));
+    });
 
     // 3. Static Network Benchmark (e.g. d <= 1.5%)
+    on_progress("STAGE_STATIC", 0.76, &format!("Benchmarking legacy static distance network (d <= {})...", config.static_distance_threshold));
     let mut static_edges = Vec::new();
     let mut degree_static = vec![0usize; n];
 
@@ -119,6 +132,7 @@ pub fn run_trace50(
     let static_clustered_count = static_cluster_assign.iter().filter(|&&c| c > 0).count();
 
     // 4. DANNO Bayesian Network Inference
+    on_progress("STAGE_DANNO", 0.80, &format!("Evaluating DANNO coalescent Bayes factors & clock adequacy (FDR q <= {})...", config.fdr_threshold));
     let mut danno = DannoEstimator::new(
         l,
         config.mu,
@@ -271,6 +285,7 @@ pub fn run_trace50(
     };
 
     // 5. STEVE / AutoClock Spectral Deconvolution
+    on_progress("STAGE_STEVE", 0.88, "Deconstructing spectral transmission communities via Cheeger cuts...");
     let mut communities = recursive_autoclock_deconvolution(
         &all_indices,
         &dates,
@@ -296,6 +311,7 @@ pub fn run_trace50(
     }
 
     // 6. CHIN Macro-Epidemic Parameter Estimation
+    on_progress("STAGE_CHIN", 0.94, "Inverting macro-scale transmission pool & sampling fraction...");
     let chin = ChinEstimator::new(config.r0);
     let e_supported = supported_edges.len();
     let theta = chin.estimate_composite_parameter(n, e_supported);
@@ -321,7 +337,8 @@ pub fn run_trace50(
         .collect();
     borel_bins.sort_by_key(|b| b.cluster_size);
 
-    // 7. Assemble Nodes
+    // 7. Assemble Nodes & Visualization Payload
+    on_progress("STAGE_DOSSIER", 0.98, "Assembling visualization payload...");
     let mut nodes = Vec::with_capacity(n);
     for i in 0..n {
         let comm_id = community_assignment[i];
@@ -357,6 +374,8 @@ pub fn run_trace50(
     let execution_time_seconds = start_time.elapsed().as_secs_f64();
     #[cfg(target_arch = "wasm32")]
     let execution_time_seconds = 0.0;
+
+    on_progress("STAGE_COMPLETE", 1.0, "Surveillance analysis complete!");
 
     Ok(VisualizationDossier {
         schema_version: "5.0.0".to_string(),
@@ -416,12 +435,25 @@ pub fn run_trace50(
     })
 }
 
+/// Executes the end-to-end TRACE-5.0 surveillance pipeline.
+#[inline]
+pub fn run_trace50(
+    alignment: &Alignment,
+    config: &Trace50Config,
+) -> Result<VisualizationDossier, String> {
+    run_trace50_with_progress(alignment, config, |_, _, _| {})
+}
+
 /// Convenience function: Ingests FASTA content and optional JSON configuration string,
-/// returning the complete, serialized JSON visualization dossier string.
-pub fn run_trace50_json(
+/// returning the complete, serialized JSON visualization dossier string with progress reporting.
+pub fn run_trace50_json_with_progress<F>(
     fasta_content: &str,
     config_json: Option<&str>,
-) -> Result<String, String> {
+    on_progress: F,
+) -> Result<String, String>
+where
+    F: FnMut(&str, f64, &str),
+{
     let alignment = Alignment::from_fasta_str(fasta_content)?;
     let config: Trace50Config = if let Some(cfg_str) = config_json {
         if !cfg_str.trim().is_empty() {
@@ -433,7 +465,17 @@ pub fn run_trace50_json(
         Trace50Config::default()
     };
 
-    let dossier = run_trace50(&alignment, &config)?;
-    serde_json::to_string_pretty(&dossier)
+    let dossier = run_trace50_with_progress(&alignment, &config, on_progress)?;
+    serde_json::to_string(&dossier)
         .map_err(|e| format!("Failed to serialize dossier to JSON: {}", e))
+}
+
+/// Convenience function: Ingests FASTA content and optional JSON configuration string,
+/// returning the complete, serialized JSON visualization dossier string.
+#[inline]
+pub fn run_trace50_json(
+    fasta_content: &str,
+    config_json: Option<&str>,
+) -> Result<String, String> {
+    run_trace50_json_with_progress(fasta_content, config_json, |_, _, _| {})
 }

@@ -138,6 +138,38 @@ export function run_trace50_pipeline(fasta_content, config_json) {
 }
 
 /**
+ * Runs the complete, end-to-end TRACE-5.0 surveillance pipeline from a FASTA string
+ * and optional JSON configuration string, providing real-time progress callbacks to JavaScript.
+ * Callback signature: `on_progress(stage: string, percent: number, detail: string)`
+ * @param {string} fasta_content
+ * @param {string | null} [config_json]
+ * @param {Function | null} [progress_callback]
+ * @returns {string}
+ */
+export function run_trace50_pipeline_with_progress(fasta_content, config_json, progress_callback) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(fasta_content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        var ptr1 = isLikeNone(config_json) ? 0 : passStringToWasm0(config_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        const ret = wasm.run_trace50_pipeline_with_progress(ptr0, len0, ptr1, len1, isLikeNone(progress_callback) ? 0 : addToExternrefTable0(progress_callback));
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Returns the TRACE-5.0 engine version.
  * @returns {string}
  */
@@ -235,6 +267,10 @@ function __wbg_get_imports() {
         __wbg___wbindgen_throw_41e9ee4f547fc59a: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         },
+        __wbg_call_939a2607c4484b0b: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4) {
+            const ret = arg0.call(arg1, arg2, arg3, arg4);
+            return ret;
+        }, arguments); },
         __wbg_error_757e9472f8410341: function(arg0, arg1) {
             let deferred0_0;
             let deferred0_1;
@@ -341,6 +377,12 @@ function __wbg_get_imports() {
     };
 }
 
+function addToExternrefTable0(obj) {
+    const idx = wasm.__externref_table_alloc();
+    wasm.__wbindgen_externrefs.set(idx, obj);
+    return idx;
+}
+
 function debugString(val) {
     // primitive types
     const type = typeof val;
@@ -429,6 +471,15 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function handleError(f, args) {
+    try {
+        return f.apply(this, args);
+    } catch (e) {
+        const idx = addToExternrefTable0(e);
+        wasm.__wbindgen_exn_store(idx);
+    }
 }
 
 function isLikeNone(x) {

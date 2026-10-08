@@ -275,21 +275,39 @@ impl Alignment {
         self.headers.len()
     }
 
-    /// Computes full symmetric pairwise TN93 distance matrix.
-    /// Returns a flattened `N x N` matrix in row-major order.
-    pub fn compute_distance_matrix(&self) -> Vec<f64> {
+    /// Computes full symmetric pairwise TN93 distance matrix with a progress callback.
+    /// `on_progress(done_pairs, total_pairs, fraction)`
+    pub fn compute_distance_matrix_with_progress<F>(&self, mut on_progress: F) -> Vec<f64>
+    where
+        F: FnMut(usize, usize, f64),
+    {
         let n = self.num_sequences();
         let mut matrix = vec![0.0; n * n];
+        let total_pairs = n * (n.saturating_sub(1)) / 2;
+        let mut done_pairs = 0usize;
+        let report_interval = (total_pairs / 100).clamp(200, 10000);
 
         for i in 0..n {
             for j in (i + 1)..n {
                 let dist = compute_pairwise_tn93(&self.encoded_bits[i], &self.encoded_bits[j]);
                 matrix[i * n + j] = dist;
                 matrix[j * n + i] = dist;
+                done_pairs += 1;
+                if done_pairs % report_interval == 0 || done_pairs == total_pairs {
+                    let frac = done_pairs as f64 / total_pairs.max(1) as f64;
+                    on_progress(done_pairs, total_pairs, frac);
+                }
             }
         }
 
         matrix
+    }
+
+    /// Computes full symmetric pairwise TN93 distance matrix.
+    /// Returns a flattened `N x N` matrix in row-major order.
+    #[inline]
+    pub fn compute_distance_matrix(&self) -> Vec<f64> {
+        self.compute_distance_matrix_with_progress(|_, _, _| {})
     }
 }
 

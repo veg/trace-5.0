@@ -5,7 +5,8 @@
 
 use wasm_bindgen::prelude::*;
 use trace50_core::{
-    compute_pairwise_tn93, DannoEstimator, Alignment, Trace50Config, run_trace50, run_trace50_json
+    compute_pairwise_tn93, DannoEstimator, Alignment, Trace50Config, run_trace50, run_trace50_json,
+    run_trace50_json_with_progress
 };
 use trace50_core::tn93::char_to_iupac_mask;
 
@@ -66,6 +67,26 @@ pub fn check_clock_adequacy(
     let estimator = DannoEstimator::new(seq_len, mu, 1.0, 2.0, 20.0, 0.05, 0.065, 0.0004);
     let (p_adeq, _) = estimator.check_clock_adequacy(k_substitutions, delta_t, Some(mu));
     p_adeq
+}
+
+/// Runs the complete, end-to-end TRACE-5.0 surveillance pipeline from a FASTA string
+/// and optional JSON configuration string, providing real-time progress callbacks to JavaScript.
+/// Callback signature: `on_progress(stage: string, percent: number, detail: string)`
+#[wasm_bindgen]
+pub fn run_trace50_pipeline_with_progress(
+    fasta_content: &str,
+    config_json: Option<String>,
+    progress_callback: Option<js_sys::Function>,
+) -> Result<String, JsValue> {
+    run_trace50_json_with_progress(fasta_content, config_json.as_deref(), |stage, pct, detail| {
+        if let Some(ref cb) = progress_callback {
+            let this = JsValue::NULL;
+            let arg_stage = JsValue::from_str(stage);
+            let arg_pct = JsValue::from_f64(pct);
+            let arg_detail = JsValue::from_str(detail);
+            let _ = cb.call3(&this, &arg_stage, &arg_pct, &arg_detail);
+        }
+    }).map_err(|e| JsValue::from_str(&e))
 }
 
 /// Runs the complete, end-to-end TRACE-5.0 surveillance pipeline from a FASTA string

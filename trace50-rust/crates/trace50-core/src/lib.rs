@@ -20,4 +20,4 @@ pub use info_danno::{InfoDannoEstimator, AlleleFrequencyTable};
 pub use autoclock::{SteveCommunity, recursive_autoclock_deconvolution};
 pub use chin::{ChinEstimator, ActivePopulationEstimate, BorelDecayResult, ChinBayesianResult, ChinPosteriorSummary, DateQuantizationResult};
 pub use visualization::VisualizationDossier;
-pub use pipeline::{Trace50Config, run_trace50, run_trace50_json};
+pub use pipeline::{Trace50Config, run_trace50, run_trace50_with_progress, run_trace50_json, run_trace50_json_with_progress};
