@@ -82,11 +82,11 @@
           </div>
 
           <!-- Input Format Specifications (Die Gute Form Technical Manual) -->
-          <div class="format-spec-card">
-            <div class="format-spec-header">
+          <details class="format-spec-card">
+            <summary class="format-spec-header" style="cursor:pointer; user-select:none;">
               <span class="format-spec-title">INPUT FORMAT SPECIFICATIONS</span>
-              <span class="format-spec-badge">ALIGNED FASTA REQUIRED</span>
-            </div>
+              <span class="format-spec-badge">ALIGNED FASTA REQUIRED ▾</span>
+            </summary>
             <div class="format-spec-body">
               <div class="format-spec-item">
                 <span class="spec-label">SEQUENCE ALIGNMENT:</span>
@@ -104,7 +104,7 @@ ACGT...                    (Identical length across all entries)</div>
                 Collection dates calibrate the dynamic molecular clock corridor and purge unevolved archival repeats (BF = 0).
               </div>
             </div>
-          </div>
+          </details>
         </div>
 
         <!-- Surveillance Hyperparameters & Run Trigger -->
@@ -214,7 +214,7 @@ ACGT...                    (Identical length across all entries)</div>
             04 MACRO-EPIDEMIC SCALE (CHIN)
           </button>
           <button class="tab-btn" data-tab="table" onclick="switchTab('table')">
-            05 CERTIFIED DYAD MATRIX & EXPORT
+            05 SUPPORTED DYAD MATRIX & EXPORT
           </button>
         </div>
 
@@ -223,7 +223,7 @@ ACGT...                    (Identical length across all entries)</div>
           <div class="graph-toolbar">
             <div class="segmented-control">
               <button class="segmented-btn active" data-mode="danno" onclick="setNetworkMode('danno')">
-                DANNO CERTIFIED BACKBONE (q ≤ 0.05)
+                DANNO SUPPORTED BACKBONE (q ≤ 0.05)
               </button>
               <button class="segmented-btn" data-mode="static" onclick="setNetworkMode('static')">
                 LEGACY STATIC TN93 (1.5%) HAIRBALL
@@ -251,7 +251,7 @@ ACGT...                    (Identical length across all entries)</div>
               Dynamic Transmission Corridor <strong style="color:var(--signal-cobalt);">E[d | ΔT]</strong> vs. Legacy Static Ceilings (0.5% and 1.5%)
             </div>
             <div class="network-hud">
-              <span class="hud-item" style="color:var(--signal-emerald);">● Certified Dyads</span>
+              <span class="hud-item" style="color:var(--signal-emerald);">● Supported Dyads</span>
               <span class="hud-item" style="color:var(--signal-slate);">● Static Noise Bridges</span>
               <span class="hud-item" style="color:var(--signal-vermilion);">◆ Clock Violations</span>
             </div>

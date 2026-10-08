@@ -50,7 +50,7 @@ impl Default for Trace50Config {
             alpha_adequacy: 0.05,
             fdr_threshold: 0.05,
             prior_odds: 0.01,
-            max_delta_t: 2.0,
+            max_delta_t: 20.0,
             r0: 1.5,
             min_cluster_size: 3,
             max_recursion_depth: 8,
@@ -271,7 +271,7 @@ pub fn run_trace50(
     };
 
     // 5. STEVE / AutoClock Spectral Deconvolution
-    let communities = recursive_autoclock_deconvolution(
+    let mut communities = recursive_autoclock_deconvolution(
         &all_indices,
         &dates,
         &d_matrix,
@@ -286,8 +286,9 @@ pub fn run_trace50(
     // Map community assignments to nodes
     let mut community_assignment = vec![0usize; n];
     let mut community_tier_map = HashMap::new();
-    for (comm_idx, comm) in communities.iter().enumerate() {
+    for (comm_idx, comm) in communities.iter_mut().enumerate() {
         let comm_id = comm_idx + 1;
+        comm.community_id = comm_id;
         community_tier_map.insert(comm_id, comm.operational_tier.clone());
         for &m in &comm.members {
             community_assignment[m] = comm_id;
