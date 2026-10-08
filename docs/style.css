@@ -54,6 +54,15 @@ header {
   gap: 1rem;
 }
 
+.brand-logo-img {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
 .logo-badge {
   background: linear-gradient(135deg, #2563eb, #7c3aed);
   color: white;
