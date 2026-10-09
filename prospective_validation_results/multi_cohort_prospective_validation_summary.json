@@ -11,7 +11,7 @@
     "Prospective_Cases_Linked": 56,
     "Yield_Per_Patient": 0.4,
     "False_Alarm_Clusters": 28,
-    "Execution_Time_Sec": 0.11
+    "Execution_Time_Sec": 0.1
   },
   {
     "Cohort": "Washington, DC ($N=1{,}658$, Subtypes B & C)",
@@ -25,7 +25,7 @@
     "Prospective_Cases_Linked": 55,
     "Yield_Per_Patient": 0.45081967213114754,
     "False_Alarm_Clusters": 21,
-    "Execution_Time_Sec": 0.11
+    "Execution_Time_Sec": 0.1
   },
   {
     "Cohort": "Washington, DC ($N=1{,}658$, Subtypes B & C)",
@@ -39,7 +39,7 @@
     "Prospective_Cases_Linked": 46,
     "Yield_Per_Patient": 0.71875,
     "False_Alarm_Clusters": 16,
-    "Execution_Time_Sec": 0.11
+    "Execution_Time_Sec": 0.1
   },
   {
     "Cohort": "Washington, DC ($N=1{,}658$, Subtypes B & C)",
@@ -53,7 +53,7 @@
     "Prospective_Cases_Linked": 5,
     "Yield_Per_Patient": 0.16129032258064516,
     "False_Alarm_Clusters": 11,
-    "Execution_Time_Sec": 0.11
+    "Execution_Time_Sec": 0.1
   },
   {
     "Cohort": "Washington, DC ($N=1{,}658$, Subtypes B & C)",
@@ -67,7 +67,7 @@
     "Prospective_Cases_Linked": 43,
     "Yield_Per_Patient": 0.7962962962962963,
     "False_Alarm_Clusters": 15,
-    "Execution_Time_Sec": 0.11
+    "Execution_Time_Sec": 0.1
   },
   {
     "Cohort": "Washington, DC ($N=1{,}658$, Subtypes B & C)",
@@ -81,35 +81,35 @@
     "Prospective_Cases_Linked": 46,
     "Yield_Per_Patient": 0.7540983606557377,
     "False_Alarm_Clusters": 15,
-    "Execution_Time_Sec": 0.11
+    "Execution_Time_Sec": 0.1
   },
   {
     "Cohort": "Washington, DC ($N=1{,}658$, Subtypes B & C)",
     "Method": "AutoClock STEVE (Active & Emergent Prioritized)",
-    "Prioritized_Clusters": 7,
-    "Targeted_Patients": 69,
-    "Growing_Clusters_Full": 5,
-    "PPV_Full_Pct": 71.42857142857143,
-    "Growing_Clusters_12mo": 2,
-    "PPV_12mo_Pct": 28.57142857142857,
-    "Prospective_Cases_Linked": 44,
-    "Yield_Per_Patient": 0.6376811594202898,
-    "False_Alarm_Clusters": 2,
-    "Execution_Time_Sec": 0.11
+    "Prioritized_Clusters": 1,
+    "Targeted_Patients": 3,
+    "Growing_Clusters_Full": 1,
+    "PPV_Full_Pct": 100.0,
+    "Growing_Clusters_12mo": 1,
+    "PPV_12mo_Pct": 100.0,
+    "Prospective_Cases_Linked": 2,
+    "Yield_Per_Patient": 0.6666666666666666,
+    "False_Alarm_Clusters": 0,
+    "Execution_Time_Sec": 0.1
   },
   {
     "Cohort": "Washington, DC ($N=1{,}658$, Subtypes B & C)",
     "Method": "AutoClock STEVE (Stationary Chronic / Dormant)",
-    "Prioritized_Clusters": 1,
-    "Targeted_Patients": 3,
-    "Growing_Clusters_Full": 0,
-    "PPV_Full_Pct": 0.0,
-    "Growing_Clusters_12mo": 0,
-    "PPV_12mo_Pct": 0.0,
-    "Prospective_Cases_Linked": 0,
-    "Yield_Per_Patient": 0.0,
-    "False_Alarm_Clusters": 1,
-    "Execution_Time_Sec": 0.11
+    "Prioritized_Clusters": 7,
+    "Targeted_Patients": 69,
+    "Growing_Clusters_Full": 4,
+    "PPV_Full_Pct": 57.14285714285714,
+    "Growing_Clusters_12mo": 1,
+    "PPV_12mo_Pct": 14.285714285714285,
+    "Prospective_Cases_Linked": 42,
+    "Yield_Per_Patient": 0.6086956521739131,
+    "False_Alarm_Clusters": 3,
+    "Execution_Time_Sec": 0.1
   },
   {
     "Cohort": "Shenzhen, China ($N=454$, CRF07_BC)",
@@ -123,7 +123,7 @@
     "Prospective_Cases_Linked": 271,
     "Yield_Per_Patient": 1.856164383561644,
     "False_Alarm_Clusters": 4,
-    "Execution_Time_Sec": 1.06
+    "Execution_Time_Sec": 1.04
   },
   {
     "Cohort": "Shenzhen, China ($N=454$, CRF07_BC)",
@@ -137,7 +137,7 @@
     "Prospective_Cases_Linked": 270,
     "Yield_Per_Patient": 2.0930232558139537,
     "False_Alarm_Clusters": 2,
-    "Execution_Time_Sec": 1.06
+    "Execution_Time_Sec": 1.04
   },
   {
     "Cohort": "Shenzhen, China ($N=454$, CRF07_BC)",
@@ -151,7 +151,7 @@
     "Prospective_Cases_Linked": 271,
     "Yield_Per_Patient": 2.0846153846153848,
     "False_Alarm_Clusters": 3,
-    "Execution_Time_Sec": 1.06
+    "Execution_Time_Sec": 1.04
   },
   {
     "Cohort": "Shenzhen, China ($N=454$, CRF07_BC)",
@@ -165,7 +165,7 @@
     "Prospective_Cases_Linked": 271,
     "Yield_Per_Patient": 2.509259259259259,
     "False_Alarm_Clusters": 2,
-    "Execution_Time_Sec": 1.07
+    "Execution_Time_Sec": 1.04
   },
   {
     "Cohort": "Shenzhen, China ($N=454$, CRF07_BC)",
@@ -179,7 +179,7 @@
     "Prospective_Cases_Linked": 271,
     "Yield_Per_Patient": 2.463636363636364,
     "False_Alarm_Clusters": 2,
-    "Execution_Time_Sec": 1.07
+    "Execution_Time_Sec": 1.04
   },
   {
     "Cohort": "Shenzhen, China ($N=454$, CRF07_BC)",
@@ -193,7 +193,7 @@
     "Prospective_Cases_Linked": 271,
     "Yield_Per_Patient": 2.2583333333333333,
     "False_Alarm_Clusters": 2,
-    "Execution_Time_Sec": 1.07
+    "Execution_Time_Sec": 1.04
   },
   {
     "Cohort": "Shenzhen, China ($N=454$, CRF07_BC)",
@@ -207,7 +207,7 @@
     "Prospective_Cases_Linked": 271,
     "Yield_Per_Patient": 2.221311475409836,
     "False_Alarm_Clusters": 2,
-    "Execution_Time_Sec": 1.07
+    "Execution_Time_Sec": 1.04
   },
   {
     "Cohort": "Shenzhen, China ($N=454$, CRF07_BC)",
@@ -221,35 +221,21 @@
     "Prospective_Cases_Linked": 271,
     "Yield_Per_Patient": 2.10077519379845,
     "False_Alarm_Clusters": 3,
-    "Execution_Time_Sec": 1.07
-  },
-  {
-    "Cohort": "Shenzhen, China ($N=454$, CRF07_BC)",
-    "Method": "AutoClock STEVE (Active & Emergent Prioritized)",
-    "Prioritized_Clusters": 7,
-    "Targeted_Patients": 134,
-    "Growing_Clusters_Full": 6,
-    "PPV_Full_Pct": 85.71428571428571,
-    "Growing_Clusters_12mo": 5,
-    "PPV_12mo_Pct": 71.42857142857143,
-    "Prospective_Cases_Linked": 270,
-    "Yield_Per_Patient": 2.014925373134328,
-    "False_Alarm_Clusters": 1,
-    "Execution_Time_Sec": 1.07
+    "Execution_Time_Sec": 1.04
   },
   {
     "Cohort": "Shenzhen, China ($N=454$, CRF07_BC)",
     "Method": "AutoClock STEVE (Stationary Chronic / Dormant)",
-    "Prioritized_Clusters": 2,
-    "Targeted_Patients": 6,
-    "Growing_Clusters_Full": 1,
-    "PPV_Full_Pct": 50.0,
-    "Growing_Clusters_12mo": 0,
-    "PPV_12mo_Pct": 0.0,
-    "Prospective_Cases_Linked": 1,
-    "Yield_Per_Patient": 0.16666666666666666,
-    "False_Alarm_Clusters": 1,
-    "Execution_Time_Sec": 1.07
+    "Prioritized_Clusters": 9,
+    "Targeted_Patients": 140,
+    "Growing_Clusters_Full": 7,
+    "PPV_Full_Pct": 77.77777777777779,
+    "Growing_Clusters_12mo": 5,
+    "PPV_12mo_Pct": 55.55555555555556,
+    "Prospective_Cases_Linked": 270,
+    "Yield_Per_Patient": 1.9285714285714286,
+    "False_Alarm_Clusters": 2,
+    "Execution_Time_Sec": 1.04
   },
   {
     "Cohort": "Middle Tennessee ($N=2{,}915$, Subtype B)",
@@ -263,7 +249,7 @@
     "Prospective_Cases_Linked": 271,
     "Yield_Per_Patient": 0.3608521970705726,
     "False_Alarm_Clusters": 91,
-    "Execution_Time_Sec": 2.04
+    "Execution_Time_Sec": 2.03
   },
   {
     "Cohort": "Middle Tennessee ($N=2{,}915$, Subtype B)",
@@ -277,7 +263,7 @@
     "Prospective_Cases_Linked": 148,
     "Yield_Per_Patient": 0.39050131926121373,
     "False_Alarm_Clusters": 18,
-    "Execution_Time_Sec": 2.04
+    "Execution_Time_Sec": 2.03
   },
   {
     "Cohort": "Middle Tennessee ($N=2{,}915$, Subtype B)",
@@ -291,7 +277,7 @@
     "Prospective_Cases_Linked": 220,
     "Yield_Per_Patient": 0.4365079365079365,
     "False_Alarm_Clusters": 84,
-    "Execution_Time_Sec": 2.04
+    "Execution_Time_Sec": 2.03
   },
   {
     "Cohort": "Middle Tennessee ($N=2{,}915$, Subtype B)",
@@ -305,7 +291,7 @@
     "Prospective_Cases_Linked": 161,
     "Yield_Per_Patient": 0.6388888888888888,
     "False_Alarm_Clusters": 45,
-    "Execution_Time_Sec": 2.04
+    "Execution_Time_Sec": 2.03
   },
   {
     "Cohort": "Middle Tennessee ($N=2{,}915$, Subtype B)",
@@ -319,7 +305,7 @@
     "Prospective_Cases_Linked": 227,
     "Yield_Per_Patient": 0.4829787234042553,
     "False_Alarm_Clusters": 65,
-    "Execution_Time_Sec": 2.04
+    "Execution_Time_Sec": 2.03
   },
   {
     "Cohort": "Middle Tennessee ($N=2{,}915$, Subtype B)",
@@ -333,35 +319,35 @@
     "Prospective_Cases_Linked": 227,
     "Yield_Per_Patient": 0.47890295358649787,
     "False_Alarm_Clusters": 65,
-    "Execution_Time_Sec": 2.04
+    "Execution_Time_Sec": 2.03
   },
   {
     "Cohort": "Middle Tennessee ($N=2{,}915$, Subtype B)",
     "Method": "AutoClock STEVE (Active & Emergent Prioritized)",
-    "Prioritized_Clusters": 79,
-    "Targeted_Patients": 432,
-    "Growing_Clusters_Full": 59,
-    "PPV_Full_Pct": 74.68354430379746,
-    "Growing_Clusters_12mo": 32,
-    "PPV_12mo_Pct": 40.50632911392405,
-    "Prospective_Cases_Linked": 207,
-    "Yield_Per_Patient": 0.4791666666666667,
-    "False_Alarm_Clusters": 20,
-    "Execution_Time_Sec": 2.04
+    "Prioritized_Clusters": 6,
+    "Targeted_Patients": 19,
+    "Growing_Clusters_Full": 5,
+    "PPV_Full_Pct": 83.33333333333334,
+    "Growing_Clusters_12mo": 1,
+    "PPV_12mo_Pct": 16.666666666666664,
+    "Prospective_Cases_Linked": 10,
+    "Yield_Per_Patient": 0.5263157894736842,
+    "False_Alarm_Clusters": 1,
+    "Execution_Time_Sec": 2.03
   },
   {
     "Cohort": "Middle Tennessee ($N=2{,}915$, Subtype B)",
     "Method": "AutoClock STEVE (Stationary Chronic / Dormant)",
-    "Prioritized_Clusters": 6,
-    "Targeted_Patients": 113,
-    "Growing_Clusters_Full": 5,
-    "PPV_Full_Pct": 83.33333333333334,
-    "Growing_Clusters_12mo": 5,
-    "PPV_12mo_Pct": 83.33333333333334,
-    "Prospective_Cases_Linked": 31,
-    "Yield_Per_Patient": 0.2743362831858407,
-    "False_Alarm_Clusters": 1,
-    "Execution_Time_Sec": 2.04
+    "Prioritized_Clusters": 83,
+    "Targeted_Patients": 540,
+    "Growing_Clusters_Full": 61,
+    "PPV_Full_Pct": 73.49397590361446,
+    "Growing_Clusters_12mo": 37,
+    "PPV_12mo_Pct": 44.57831325301205,
+    "Prospective_Cases_Linked": 225,
+    "Yield_Per_Patient": 0.4166666666666667,
+    "False_Alarm_Clusters": 22,
+    "Execution_Time_Sec": 2.03
   },
   {
     "Cohort": "Japan Nationwide NIID ($N=5{,}232$, Subtype B)",
@@ -375,7 +361,7 @@
     "Prospective_Cases_Linked": 1424,
     "Yield_Per_Patient": 0.74750656167979,
     "False_Alarm_Clusters": 78,
-    "Execution_Time_Sec": 7.08
+    "Execution_Time_Sec": 8.43
   },
   {
     "Cohort": "Japan Nationwide NIID ($N=5{,}232$, Subtype B)",
@@ -389,7 +375,7 @@
     "Prospective_Cases_Linked": 1315,
     "Yield_Per_Patient": 0.8229036295369212,
     "False_Alarm_Clusters": 27,
-    "Execution_Time_Sec": 7.09
+    "Execution_Time_Sec": 8.43
   },
   {
     "Cohort": "Japan Nationwide NIID ($N=5{,}232$, Subtype B)",
@@ -403,7 +389,7 @@
     "Prospective_Cases_Linked": 1329,
     "Yield_Per_Patient": 0.9526881720430107,
     "False_Alarm_Clusters": 79,
-    "Execution_Time_Sec": 7.09
+    "Execution_Time_Sec": 8.43
   },
   {
     "Cohort": "Japan Nationwide NIID ($N=5{,}232$, Subtype B)",
@@ -417,7 +403,7 @@
     "Prospective_Cases_Linked": 1078,
     "Yield_Per_Patient": 1.4221635883905013,
     "False_Alarm_Clusters": 55,
-    "Execution_Time_Sec": 7.09
+    "Execution_Time_Sec": 8.43
   },
   {
     "Cohort": "Japan Nationwide NIID ($N=5{,}232$, Subtype B)",
@@ -431,7 +417,7 @@
     "Prospective_Cases_Linked": 1262,
     "Yield_Per_Patient": 1.0613961312026914,
     "False_Alarm_Clusters": 75,
-    "Execution_Time_Sec": 7.09
+    "Execution_Time_Sec": 8.43
   },
   {
     "Cohort": "Japan Nationwide NIID ($N=5{,}232$, Subtype B)",
@@ -445,34 +431,34 @@
     "Prospective_Cases_Linked": 1291,
     "Yield_Per_Patient": 1.0062353858144972,
     "False_Alarm_Clusters": 74,
-    "Execution_Time_Sec": 7.09
+    "Execution_Time_Sec": 8.43
   },
   {
     "Cohort": "Japan Nationwide NIID ($N=5{,}232$, Subtype B)",
     "Method": "AutoClock STEVE (Active & Emergent Prioritized)",
-    "Prioritized_Clusters": 107,
-    "Targeted_Patients": 616,
-    "Growing_Clusters_Full": 87,
-    "PPV_Full_Pct": 81.30841121495327,
-    "Growing_Clusters_12mo": 61,
-    "PPV_12mo_Pct": 57.009345794392516,
-    "Prospective_Cases_Linked": 580,
-    "Yield_Per_Patient": 0.9415584415584416,
-    "False_Alarm_Clusters": 20,
-    "Execution_Time_Sec": 7.09
+    "Prioritized_Clusters": 4,
+    "Targeted_Patients": 12,
+    "Growing_Clusters_Full": 3,
+    "PPV_Full_Pct": 75.0,
+    "Growing_Clusters_12mo": 2,
+    "PPV_12mo_Pct": 50.0,
+    "Prospective_Cases_Linked": 7,
+    "Yield_Per_Patient": 0.5833333333333334,
+    "False_Alarm_Clusters": 1,
+    "Execution_Time_Sec": 8.43
   },
   {
     "Cohort": "Japan Nationwide NIID ($N=5{,}232$, Subtype B)",
     "Method": "AutoClock STEVE (Stationary Chronic / Dormant)",
-    "Prioritized_Clusters": 14,
-    "Targeted_Patients": 1103,
-    "Growing_Clusters_Full": 10,
-    "PPV_Full_Pct": 71.42857142857143,
-    "Growing_Clusters_12mo": 8,
-    "PPV_12mo_Pct": 57.14285714285714,
-    "Prospective_Cases_Linked": 1066,
-    "Yield_Per_Patient": 0.9664551223934723,
-    "False_Alarm_Clusters": 4,
-    "Execution_Time_Sec": 7.09
+    "Prioritized_Clusters": 117,
+    "Targeted_Patients": 1707,
+    "Growing_Clusters_Full": 94,
+    "PPV_Full_Pct": 80.34188034188034,
+    "Growing_Clusters_12mo": 67,
+    "PPV_12mo_Pct": 57.26495726495726,
+    "Prospective_Cases_Linked": 1362,
+    "Yield_Per_Patient": 0.7978910369068541,
+    "False_Alarm_Clusters": 23,
+    "Execution_Time_Sec": 8.43
   }
 ]

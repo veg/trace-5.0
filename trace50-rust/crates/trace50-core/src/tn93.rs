@@ -313,11 +313,29 @@ impl Alignment {
 
 /// Helper function to parse a calendar year or decimal date from sequence header.
 pub fn parse_date_from_header(header: &str) -> f64 {
-    // Look for decimal date like 2014.25 or integer year like 2014
     for token in header.split(|c| c == '|' || c == '_' || c == '/' || c == ' ') {
+        // Direct float/integer parse (e.g. 2014.25 or 2014)
         if let Ok(val) = token.parse::<f64>() {
             if (1950.0..=2035.0).contains(&val) {
                 return val;
+            }
+        }
+        // ISO 8601 calendar date parse (e.g. 2021-04-15 or 2021-04)
+        let parts: Vec<&str> = token.split('-').collect();
+        if parts.len() == 2 || parts.len() == 3 {
+            if let Ok(year) = parts[0].parse::<f64>() {
+                if (1950.0..=2035.0).contains(&year) {
+                    if let Ok(month) = parts[1].parse::<f64>() {
+                        if (1.0..=12.0).contains(&month) {
+                            let day = if parts.len() == 3 {
+                                parts[2].parse::<f64>().unwrap_or(15.0)
+                            } else {
+                                15.0
+                            };
+                            return year + (month - 1.0) / 12.0 + (day - 1.0) / 365.25;
+                        }
+                    }
+                }
             }
         }
     }

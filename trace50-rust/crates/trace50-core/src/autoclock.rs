@@ -154,15 +154,13 @@ pub fn fit_clock_community(
         };
     }
 
-    // Root-to-tip divergence measured from earliest sampled isolate
-    let mut earliest_local_idx = 0;
-    let mut earliest_date = f64::INFINITY;
-    for (i, &d) in sub_dates.iter().enumerate() {
-        if d < earliest_date {
-            earliest_date = d;
-            earliest_local_idx = i;
-        }
-    }
+    // Root-to-tip divergence measured from earliest sampled isolate.
+    let earliest_local_idx = sub_dates
+        .iter()
+        .enumerate()
+        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .map(|(i, _)| i)
+        .unwrap_or(0);
 
     let root_dists: Vec<f64> = (0..n).map(|i| d_sub[earliest_local_idx * n + i]).collect();
 
@@ -221,7 +219,10 @@ pub fn fit_clock_community(
     };
 
     let is_recent = tmrca >= (max_date - 6.0) || (ci_mrca[1].is_finite() && ci_mrca[1] >= (max_date - 4.0));
-    let is_active = lr.slope >= 1.0e-3 && fieller_status == "OK" && lr.r_squared >= 0.15 && is_recent;
+    let is_active = lr.slope >= 1.0e-3
+        && fieller_status == "OK"
+        && lr.r_squared >= 0.15
+        && is_recent;
 
     let operational_tier = if is_active {
         "Active Outbreak Chain".to_string()
@@ -285,7 +286,10 @@ pub fn optimize_fiedler_modularity(
     let mut best_q = -1e9;
     let mut best_k = 0;
 
-    for k in min_size..=(n - min_size) {
+    let min_k = 1;
+    let max_k = if n > 1 { n - 1 } else { 0 };
+
+    for k in min_k..=max_k {
         let mut k0_deg = 0.0;
         let mut k1_deg = 0.0;
         for i in 0..k {
@@ -340,11 +344,21 @@ pub fn recursive_autoclock_deconvolution(
     conductance_cut: f64,
 ) -> Vec<SteveCommunity> {
     let n = sub_idx.len();
+
     let mut fit = fit_clock_community(sub_idx, dates, d_matrix, n_total, 0.05);
     fit.path = path.to_string();
 
-    if depth >= max_depth || n < 2 * min_size {
-        fit.stop_reason = "leaf_size_floor".to_string();
+    if n < 3 {
+        fit.stop_reason = if n == 2 {
+            "dyad_node".to_string()
+        } else {
+            "singleton_node".to_string()
+        };
+        return vec![fit];
+    }
+
+    if depth >= max_depth {
+        fit.stop_reason = "max_depth".to_string();
         return vec![fit];
     }
 
@@ -415,7 +429,7 @@ pub fn recursive_autoclock_deconvolution(
     }
 
     let (c0, c1, _best_q, delta_q) = optimize_fiedler_modularity(&w, &fiedler, n, min_size);
-    if c0.len() < min_size || c1.len() < min_size {
+    if c0.is_empty() || c1.is_empty() {
         fit.stop_reason = "modularity_size_floor".to_string();
         return vec![fit];
     }

@@ -455,6 +455,53 @@ main {
   color: var(--signal-cobalt);
 }
 
+/* Pathogen Preset Selector */
+.preset-selector-group {
+  margin-bottom: 1.1rem;
+  padding: 0.75rem 0.85rem;
+  background-color: var(--bg-inset);
+  border: var(--border-width) solid var(--border-hairline);
+  border-radius: var(--radius-subtle);
+}
+
+.preset-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+}
+
+.preset-select {
+  width: 100%;
+  background-color: var(--bg-surface);
+  border: var(--border-width) solid var(--border-hairline);
+  color: var(--signal-sapphire);
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.preset-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.preset-desc {
+  margin-top: 0.45rem;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 /* Parameters Grid */
 .params-grid {
   display: grid;

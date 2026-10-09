@@ -62,7 +62,14 @@ def classify_subcommunity(fit_dict, max_surveillance_date=None, degree=0):
 
     t_horizon = max_surveillance_date if max_surveillance_date is not None else tmrca
 
-    if n_local < 3:
+    if n_local == 1:
+        return (
+            "Singleton Node",
+            "Individual Case Surveillance",
+            "Isolated singleton isolate without identified transmission links."
+        )
+
+    if n_local == 2:
         return (
             LineageTier.ACUTE_DYAD,
             "Targeted Clinical Engagement",
@@ -79,9 +86,14 @@ def classify_subcommunity(fit_dict, max_surveillance_date=None, degree=0):
             "not behavioral superspreading."
         )
 
-    # Active Outbreak Chains: high velocity, linearity, recent emergence
+    mean_dist = fit_dict.get("mean_dist", 0.0)
+    fieller_status = fit_dict.get("fieller_status", "OK")
+
+    # Active Outbreak Chains: high velocity, linearity, recent emergence, validated Fieller clock
     is_recent = (tmrca >= t_horizon - 6.0) or (ci_hi >= t_horizon - 4.0)
-    if is_recent and mu >= 1.0e-3 and r2 >= 0.15:
+    is_fieller_ok = (fieller_status == "OK")
+
+    if is_recent and is_fieller_ok and mu >= 1.0e-3 and r2 >= 0.15:
         return (
             LineageTier.ACTIVE_OUTBREAK,
             "Immediate Public Health Field Prioritization",
@@ -90,7 +102,7 @@ def classify_subcommunity(fit_dict, max_surveillance_date=None, degree=0):
         )
 
     # Emergent Seed Clusters: intermediate velocity, recent emergence
-    if is_recent and mu >= 5.0e-4:
+    if is_recent and is_fieller_ok and mu >= 5.0e-4:
         return (
             LineageTier.EMERGENT_CLUSTER,
             "Enhanced Molecular Surveillance",
@@ -114,7 +126,7 @@ def classify_subcommunity(fit_dict, max_surveillance_date=None, degree=0):
         )
 
     return (
-        LineageTier.EXOGENOUS_INTRO,
-        "Regional Epidemiological Cross-Referencing",
-        "Lineage exhibits weak internal cohesion or divergent clock characteristics."
+        LineageTier.STATIONARY_CHRONIC,
+        "Routine Surveillance Monitoring",
+        f"Equivocal clock dynamics (mu={mu:.2e}, R2={r2:.2f}); classified as stationary compartment."
     )

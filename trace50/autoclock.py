@@ -37,9 +37,10 @@ def compute_fieller_mrca(mu, d0, se_mu, se_d0, cov_mud0, t_ref, df, alpha=0.05):
 
     # Fieller's quadratic solution for theta = d0 / mu
     denom = 1.0 - g
-    center = (d0 / mu) - (g * cov_mud0) / (mu * (se_mu ** 2))
+    cov_term = (g * cov_mud0) / (mu * (se_mu ** 2)) if (abs(cov_mud0) > 1e-15 and se_mu > 1e-15) else 0.0
+    center = (d0 / mu) - cov_term
     discriminant = (
-        ((d0 / mu) - (g * cov_mud0) / (mu * (se_mu ** 2))) ** 2
+        center ** 2
         - (1.0 - g) * ((d0 ** 2 - (t_crit ** 2) * (se_d0 ** 2)) / (mu ** 2))
     )
 
@@ -161,6 +162,7 @@ def fit_clock_community(sub_idx, dates, D_matrix, M_int=None, is_anchor=None, al
         mu=mu, d0=d_mean, se_mu=se_mu, se_d0=se_d0, cov_mud0=cov_mud0,
         t_ref=t_mean, df=df_eff, alpha=alpha
     )
+
     tmrca = float(t_mean - d_mean / mu) if abs(mu) > 1e-12 else float(sub_dates.min())
 
     return {
@@ -173,7 +175,7 @@ def fit_clock_community(sub_idx, dates, D_matrix, M_int=None, is_anchor=None, al
     }
 
 
-def optimize_fiedler_modularity(W, fiedler, min_size=3):
+def optimize_fiedler_modularity(W, fiedler, min_size=1):
     """
     Sweeps candidate split thresholds along the sorted Fiedler vector to maximize
     the Newman-Girvan modularity Q.
@@ -185,7 +187,8 @@ def optimize_fiedler_modularity(W, fiedler, min_size=3):
         modularity_gain (float)
     """
     N = W.shape[0]
-    if N < 2 * min_size:
+    min_k = max(1, min_size)
+    if N < 2 * min_k:
         return np.arange(N), np.array([], dtype=np.int64), 0.0, 0.0
 
     degrees = np.sum(W, axis=1)
@@ -207,7 +210,7 @@ def optimize_fiedler_modularity(W, fiedler, min_size=3):
     W_sorted = W[np.ix_(sorted_indices, sorted_indices)]
 
     # Iterate candidate cut points
-    for k in range(min_size, N - min_size + 1):
+    for k in range(min_k, N - min_k + 1):
         # Community 0 is indices [0:k], Community 1 is [k:N]
         k0_deg = np.sum(deg_sorted[:k])
         k1_deg = np.sum(deg_sorted[k:])
@@ -238,21 +241,26 @@ def optimize_fiedler_modularity(W, fiedler, min_size=3):
 
 def recursive_autoclock_deconvolution(
     sub_idx, dates, D_matrix, M_int=None, is_anchor=None,
-    min_size=4, max_depth=10, depth=0, path="root",
+    min_size=1, max_depth=10, depth=0, path="root",
     conductance_cut=0.65
 ):
     """
     Recursively partitions sequence populations along structural graph spectral bottlenecks.
 
     Decoupled Stopping Rules:
-    - Bisection proceeds if: N >= 2 * min_size, depth < max_depth, delta_Q > 0, and conductance <= cut.
-    - Leaf communities are then dated and classified via continuous profile rooting.
+    - If n < 3, terminates naturally: size 1 = Singleton Node, size 2 = Contemporaneous Acute Dyad.
+    - If n >= 3, partitions if Delta Q > 0 and conductance <= conductance_cut.
+    - Leaf communities with n >= 3 are dated and classified via continuous profile rooting.
     """
     n = len(sub_idx)
     fit_summary = fit_clock_community(sub_idx, dates, D_matrix, M_int=M_int, is_anchor=is_anchor)
 
-    if depth >= max_depth or n < 2 * min_size:
-        return [(sub_idx, fit_summary, "leaf_size_floor", path)]
+    if n < 3:
+        reason = "dyad_node" if n == 2 else "singleton_node"
+        return [(sub_idx, fit_summary, reason, path)]
+
+    if depth >= max_depth:
+        return [(sub_idx, fit_summary, "max_depth", path)]
 
     D_sub = D_matrix[np.ix_(sub_idx, sub_idx)]
     nonzero = D_sub[D_sub > 0]
@@ -282,10 +290,10 @@ def recursive_autoclock_deconvolution(
     lambda_2 = float(evals[1])
     fiedler = evecs[:, 1]
 
-    # Newman-Girvan modularity optimization along Fiedler cut
+    # Newman-Girvan modularity optimization along Fiedler cut (unconstrained down to size 1)
     c0, c1, best_q, delta_q = optimize_fiedler_modularity(W, fiedler, min_size=min_size)
 
-    if len(c0) < min_size or len(c1) < min_size:
+    if len(c0) < 1 or len(c1) < 1:
         return [(sub_idx, fit_summary, "modularity_size_floor", path)]
 
     # Cheeger conductance of the cut

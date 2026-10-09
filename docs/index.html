@@ -73,11 +73,17 @@
 
           <div class="demo-bar">
             <span>Benchmark Demos:</span>
-            <button class="btn-demo" onclick="loadDemoDataset('demo_outbreak.fasta', 'DEMO 1: OUTBREAK & CLOCK VIOLATIONS (10 SEQS)')">
-              DEMO 1: OUTBREAK & CLOCK VIOLATIONS
+            <button class="btn-demo" onclick="loadDemoDataset('demo_outbreak.fasta', 'DEMO 1: HIV-1 OUTBREAK & CLOCK VIOLATIONS (10 SEQS)', 'hiv1')">
+              DEMO 1: HIV-1
             </button>
-            <button class="btn-demo" onclick="loadDemoDataset('sample_micro_outbreak.fasta', 'DEMO 2: MICRO-OUTBREAK (6 SEQS)')">
-              DEMO 2: MICRO-OUTBREAK
+            <button class="btn-demo" onclick="loadDemoDataset('sample_micro_outbreak.fasta', 'DEMO 2: HIV-1 MICRO-OUTBREAK (6 SEQS)', 'hiv1')">
+              DEMO 2: HIV-1 MICRO
+            </button>
+            <button class="btn-demo" onclick="loadDemoDataset('demo_hcv_chronic.fasta', 'DEMO 3: HCV CHRONIC PWID NETWORK (9 SEQS)', 'hcv')">
+              DEMO 3: HCV CHRONIC
+            </button>
+            <button class="btn-demo" onclick="loadDemoDataset('demo_norovirus_acute.fasta', 'DEMO 4: NOROVIRUS ACUTE OUTBREAK (8 SEQS)', 'norovirus')">
+              DEMO 4: NOROVIRUS ACUTE
             </button>
           </div>
 
@@ -112,6 +118,22 @@ ACGT...                    (Identical length across all entries)</div>
           <div class="card-title">
             <span>Surveillance Hyperparameters</span>
             <span style="font-size:0.7rem; font-family:var(--font-mono); color:var(--text-muted);">PHYSICAL COALESCENT & CLOCK CONTROLS</span>
+          </div>
+
+          <div class="preset-selector-group">
+            <label for="select-pathogen-preset" class="preset-label">PATHOGEN SURVEILLANCE PRESET</label>
+            <div class="preset-controls">
+              <select id="select-pathogen-preset" class="preset-select">
+                <option value="hiv1" selected>HIV-1 (pol: PR/RT/IN) — Chronic Reservoir (Default)</option>
+                <option value="hcv">HCV (Hepatitis C: NS5B / Core-E2) — Chronic Quasispecies</option>
+                <option value="norovirus">Norovirus (VP1: Capsid) — Acute Outbreak</option>
+                <option value="sars2">SARS-CoV-2 (Spike / ORF1ab) — Acute Respiratory</option>
+                <option value="custom">Custom (User-Calibrated)</option>
+              </select>
+            </div>
+            <div id="preset-description" class="preset-desc">
+              HIV-1 pol: μ = 0.0020 sub/site/yr · τ̄ = 1.0 yr intra-host reservoir · ω = 2.0 yr sampling delay · TN93 = 1.5%
+            </div>
           </div>
 
           <div class="params-grid">
