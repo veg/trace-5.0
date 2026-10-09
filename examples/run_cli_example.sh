@@ -3,11 +3,11 @@
 set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BIN="$DIR/../trace50-rust/target/release/trace50"
+BIN="$DIR/../target/release/trace50"
 
 if [ ! -f "$BIN" ]; then
     echo "[*] Building trace50 native release binary..."
-    cargo build --release --manifest-path "$DIR/../trace50-rust/Cargo.toml" --bin trace50
+    cargo build --release --manifest-path "$DIR/../Cargo.toml" --bin trace50
 fi
 
 echo "[*] Executing TRACE-5.0 CLI..."

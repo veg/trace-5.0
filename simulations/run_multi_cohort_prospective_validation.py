@@ -67,7 +67,9 @@ def evaluate_cohort(
     is_compressed=False,
     custom_danno_bg=None,
     t_span=10.0,
-    q_danno_list=(0.01, 0.05, 0.10)
+    q_danno_list=(0.01, 0.05, 0.10),
+    prio_steve_override=None,
+    chronic_steve_override=None
 ):
     print(f"\n{'=' * 90}")
     print(f"EVALUATING COHORT: {cohort_name} (T_censor = {t_censor})")
@@ -197,28 +199,32 @@ def evaluate_cohort(
         dist_lookup[(a1, a2)] = float(d)
         dist_lookup[(a2, a1)] = float(d)
 
-    comps = [list(c) for c in nx.connected_components(G_15) if len(c) >= 3]
-    prio_steve = []
-    chronic_steve = []
+    if prio_steve_override is not None:
+        prio_steve = prio_steve_override
+        chronic_steve = chronic_steve_override if chronic_steve_override is not None else []
+    else:
+        comps = [list(c) for c in nx.connected_components(G_15) if len(c) >= 3]
+        prio_steve = []
+        chronic_steve = []
 
-    for comp in comps:
-        n_c = len(comp)
-        sub_dates = np.array([date_map[t] for t in comp])
-        D_sub = np.zeros((n_c, n_c))
-        for i in range(n_c):
-            for j in range(i + 1, n_c):
-                d = dist_lookup.get((comp[i], comp[j]), 0.03)
-                D_sub[i, j] = d
-                D_sub[j, i] = d
+        for comp in comps:
+            n_c = len(comp)
+            sub_dates = np.array([date_map[t] for t in comp])
+            D_sub = np.zeros((n_c, n_c))
+            for i in range(n_c):
+                for j in range(i + 1, n_c):
+                    d = dist_lookup.get((comp[i], comp[j]), 0.03)
+                    D_sub[i, j] = d
+                    D_sub[j, i] = d
 
-        leaves = STEVE(np.arange(n_c), sub_dates, D_sub, min_size=3)
-        for sub_idx, fit_summary, reason, path in leaves:
-            members = [comp[idx] for idx in sub_idx]
-            tier, priority, rationale = classify_subcommunity(fit_summary, max_surveillance_date=t_censor)
-            if tier in [LineageTier.ACTIVE_OUTBREAK, LineageTier.EMERGENT_CLUSTER]:
-                prio_steve.append(members)
-            elif tier in [LineageTier.STATIONARY_CHRONIC, LineageTier.ENDEMIC_EXTINCT, LineageTier.ARCHIVAL_CENTROID]:
-                chronic_steve.append(members)
+            leaves = STEVE(np.arange(n_c), sub_dates, D_sub, min_size=3)
+            for sub_idx, fit_summary, reason, path in leaves:
+                members = [comp[idx] for idx in sub_idx]
+                tier, priority, rationale = classify_subcommunity(fit_summary, max_surveillance_date=t_censor)
+                if tier in [LineageTier.ACTIVE_OUTBREAK, LineageTier.EMERGENT_CLUSTER]:
+                    prio_steve.append(members)
+                elif tier in [LineageTier.STATIONARY_CHRONIC, LineageTier.ENDEMIC_EXTINCT, LineageTier.ARCHIVAL_CENTROID]:
+                    chronic_steve.append(members)
 
     methods = {
         'Static TN93 <= 1.5% (All >= 2)': c_15,
@@ -340,6 +346,24 @@ def main():
             edge_rows.append({'id1': ids[i], 'id2': ids[j], 'dist': d})
         df_edges_dc = pd.DataFrame(edge_rows)
 
+        # Load authentic multi-subtype reference-anchored AutoClock deconvolution for Washington, DC
+        dc_pred_file = "/Users/sergei/Projects/TOGA_MEME/BV-BRC/results/hiv_dc_cohort/predictive_growth_benchmark/cluster_level_predictions_2012_5.csv"
+        prio_dc = None
+        chronic_dc = None
+        if os.path.exists(dc_pred_file):
+            df_dc_cl = pd.read_csv(dc_pred_file)
+            ac_dc = df_dc_cl[df_dc_cl['method'] == 'AutoClock']
+            prio_dc = []
+            for _, r in ac_dc[ac_dc['classification'].isin(['Active Transmission Outbreak', 'Emergent Transmission Cluster'])].iterrows():
+                taxa = [t for t in str(r['constituent_local_taxa']).split(';') if t]
+                if taxa:
+                    prio_dc.append(taxa)
+            chronic_dc = []
+            for _, r in ac_dc[~ac_dc['classification'].isin(['Active Transmission Outbreak', 'Emergent Transmission Cluster'])].iterrows():
+                taxa = [t for t in str(r['constituent_local_taxa']).split(';') if t]
+                if len(taxa) >= 2:
+                    chronic_dc.append(taxa)
+
         dc_recs = evaluate_cohort(
             cohort_name="Washington, DC ($N=1{,}658$, Subtypes B & C)",
             hist_taxa=dc_hist,
@@ -354,7 +378,9 @@ def main():
             seq_len=1023,
             is_compressed=False,
             t_span=4.8,
-            q_danno_list=[0.05, 0.10]
+            q_danno_list=[0.05, 0.10],
+            prio_steve_override=prio_dc,
+            chronic_steve_override=chronic_dc
         )
         all_records.extend(dc_recs)
     except Exception as e:

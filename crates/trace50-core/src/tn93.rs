@@ -24,7 +24,7 @@ pub fn char_to_iupac_mask(c: u8) -> u8 {
         b'D' | b'd' => 0b1101, // A, G, or T
         b'H' | b'h' => 0b1011, // A, C, or T
         b'V' | b'v' => 0b0111, // A, C, or G
-        b'N' | b'n' => 0b1111, // Any
+        b'N' | b'n' => 0b0000, // Fully ambiguous / missing data (skipped in valid overlap)
         _ => 0b0000,           // Gap, unknown
     }
 }
@@ -373,5 +373,15 @@ mod tests {
         assert_eq!(valid, 4);
         assert!((k - 0.5).abs() < 1e-10);
         assert!((d - 0.125).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_tn93_n_ambiguity_skipped() {
+        let s1 = b"ACGTACGTNN";
+        let s2 = b"ACGTTCGTNN"; // 1 transition in 8 valid bp, Ns skipped
+        let bits1: Vec<u8> = s1.iter().map(|&c| char_to_iupac_mask(c)).collect();
+        let bits2: Vec<u8> = s2.iter().map(|&c| char_to_iupac_mask(c)).collect();
+        let dist = compute_pairwise_tn93(&bits1, &bits2);
+        assert!(dist > 0.12 && dist < 0.16);
     }
 }
