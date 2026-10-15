@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'docs/**'
+      - 'scripts/fetch_wasm.sh'
       - '.github/workflows/deploy_pages.yml'
   workflow_dispatch:
 
@@ -27,6 +28,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # docs/pkg/ is NOT committed — it is fetched from the pinned
+      # HyphAeon monorepo release (tag is set in scripts/fetch_wasm.sh).
+      - name: Fetch pinned trace50-wasm bundle
+        run: bash scripts/fetch_wasm.sh
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5

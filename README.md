@@ -63,51 +63,29 @@ Legacy molecular surveillance relies on decoupled, rectangular heuristics---such
 
 ## 2. Architecture: Pure Rust & WebAssembly Engine
 
-TRACE-5.0 is implemented in a pure, modern Rust workspace with zero C dependencies, providing maximum execution throughput alongside universal cross-platform deployment:
+TRACE-5.0 is implemented in a pure, modern Rust workspace with zero C dependencies, providing maximum execution throughput alongside universal cross-platform deployment.
 
-```
-trace-5.0/
-├── Cargo.toml                     # Workspace root manifest
-├── crates/
-│   ├── trace50-core/              # Algorithmic kernel (zero C-dependencies, pure Rust, WASM-safe)
-│   │   ├── src/
-│   │   │   ├── math.rs            # Lanczos ln_gamma, incomplete upper gamma gammaincc, Poisson CDF, Jacobi eigensolver
-│   │   │   ├── tn93.rs            # Bitmask IUPAC ambiguous Tamura-Nei 93 pairwise distance & FASTA parser
-│   │   │   ├── danno.rs           # Closed-form Kingman coalescent Bayes Factor & Benjamini-Hochberg FDR
-│   │   │   ├── info_danno.rs      # Forensic allele-frequency weighting & DRM downweighting
-│   │   │   ├── autoclock.rs       # STEVE recursive graph Laplacian spectral deconvolution & Fieller t_MRCA
-│   │   │   ├── chin.rs            # Macro-epidemic quadratic scaling law inversion & Borel branching decay
-│   │   │   ├── network.rs         # Connected components, giant component tracking & Borel cluster decay
-│   │   │   ├── visualization.rs   # Comprehensive Visualization Dossier JSON schema
-│   │   │   └── pipeline.rs        # End-to-end execution orchestrator
-│   │   └── tests/
-│   │       └── test_pipeline.rs   # Automated integration tests
-│   ├── trace50-cli/               # Native multi-platform CLI binary (`trace50`)
-│   │   └── src/main.rs            # Command-line interface with rich scorecard reporting
-│   └── trace50-wasm/              # WebAssembly package for browsers, Node.js, and Observable Framework
-│       ├── src/lib.rs             # wasm-bindgen bindings and JS Object serialization
-│       ├── pkg/                   # Compiled WASM distribution (350 KB)
-│       └── test_wasm.mjs          # Node.js automated verification suite
-```
+> **Engine source moved.** The Rust workspace (`trace50` kernel, CLI bindings, and the `trace50-wasm` browser package) is developed and released in the **[HyphAeon monorepo](https://github.com/veg/HyphAeon)** alongside the other AeON surveillance engines. This repository now holds the GitHub Pages application, empirical data, and research/benchmark artifacts only — and consumes **published, versioned artifacts** produced by the monorepo:
+>
+> | Component | Published artifact |
+> | :--- | :--- |
+> | `trace50` CLI | `pip install trace50` (compiled Rust extension in the wheel) |
+> | Browser engine | `trace50-wasm-<version>-pkg.tar.gz` on [HyphAeon releases](https://github.com/veg/HyphAeon/releases), fetched into `docs/pkg/` |
+> | Engine source | `rust/trace-5.0/crates/` in [veg/HyphAeon](https://github.com/veg/HyphAeon) |
 
 ---
 
 ## 3. Quickstart: Native Standalone CLI
 
-### Installation & Build
+### Installation
 ```bash
-# Clone repository
-git clone https://github.com/veg/trace-5.0.git
-cd trace-5.0
-
-# Build optimized release binary
-cargo build --release --bin trace50
+pip install trace50
 ```
-The compiled executable is located at `target/release/trace50`.
+The wheel bundles the compiled Rust extension — no Rust toolchain needed. To build from source instead, clone [veg/HyphAeon](https://github.com/veg/HyphAeon) and run `maturin develop` in `trace50/`.
 
 ### Running Transmission Surveillance
 ```bash
-./target/release/trace50 \
+trace50 \
   --fasta /path/to/alignment.fasta \
   --meta /path/to/metadata.csv \
   --id-col id \
@@ -165,16 +143,12 @@ The compiled executable is located at `target/release/trace50`.
 
 The TRACE-5.0 web dashboard provides zero-install, 100% client-side molecular surveillance analysis directly in any modern web browser. All calculations (TN93 distance matrix, DANNO coalescent Bayes Factors, STEVE spectral deconvolution, and CHIN macro scaling) run in browser memory using WebAssembly—no clinical sequence data or protected health information (PHI) ever leaves your local machine.
 
-### Compile WASM Target
-```bash
-cd crates/trace50-wasm
-wasm-pack build --target web --out-dir pkg
-```
+### WASM bundle provenance
 
-### Verification in Node.js
+`docs/pkg/` is not committed. It is fetched at deploy time from the pinned HyphAeon release — see `scripts/fetch_wasm.sh` (single source of truth for the engine version). For local preview:
+
 ```bash
-cd crates/trace50-wasm
-node test_wasm.mjs
+bash scripts/fetch_wasm.sh   # populates docs/pkg/
 ```
 
 ### Client-Side Browser / JavaScript API
@@ -238,46 +212,20 @@ Both the native CLI and WASM engines output a standardized, self-contained JSON 
 
 ## 7. Automated Test Suite
 
-Run the full verification suites across Rust and WebAssembly:
+The Rust and WebAssembly test suites moved with the engine to the **[HyphAeon monorepo](https://github.com/veg/HyphAeon)** (`rust/` workspace, `rust/tests/` fixtures). This repository's runnable check is the example CLI pipeline:
 
 ```bash
-# Rust test suite (core + CLI + integration tests)
-cargo test --all
-
-# WebAssembly Node.js verification test suite
-cd crates/trace50-wasm && node test_wasm.mjs
-
-# Example CLI pipeline execution
-./examples/run_cli_example.sh
+./examples/run_cli_example.sh   # requires pip install trace50
 ```
 
 ### Python parity harness
 
 The Python engine has been retired, but its validated behaviour is kept as
-golden files, so the Rust engine stays pinned to it:
-
-```bash
-cargo test --release -p trace50-core --test test_parity_golden -- --nocapture
-```
-
-`test_parity_golden` compares the engine with golden files in
-`crates/trace50-core/tests/fixtures/parity/`. The cohort is a fixed
-200-sequence subset of the Washington, DC alignment. The golden files were
-produced by `tn93 -t 1.0 -a RMYSKB`, by `validation/run_danno.py` (the Python
-reference) on those distances, by `hivnetworkcsv -t 0.015` and by
-`trace50.chin`.
-
-The test asserts that the following match: the TN93 pair set and distances,
-L, the background calibration, the supported-edge set with BF/PEP/q, the
-cluster and static partitions, and the CHIN values. It checks both the
-internal-TN93 path and the precomputed-distance path, and it runs without
-Python or tn93.
-
-To regenerate the golden files, run `python3 scripts/regen_parity_golden.py`.
-Add `--select` to re-derive the subset from the full DC alignment. This needs
-the retired Python package: set `TRACE50_PY_ORACLE` to a directory containing
-`trace50/`, for example from `git archive 8d5ed64 trace50 | tar -x`. The
-fixture README records the selection rule, the commands and the tool versions.
+golden files in the monorepo (`rust/tests/`), so the Rust engine stays pinned
+to it. The parity test compares the TN93 pair set and distances, L, the
+background calibration, the supported-edge set with BF/PEP/q, the cluster and
+static partitions, and the CHIN values — checking both the internal-TN93 path
+and the precomputed-distance path, without Python or tn93.
 
 ---
 
