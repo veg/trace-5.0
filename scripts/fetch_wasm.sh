@@ -17,6 +17,9 @@ ASSET="trace50-wasm-${TRACE50_WASM_TAG##*-v}-pkg.tar.gz"
 URL="https://github.com/veg/HyphAeon/releases/download/${TRACE50_WASM_TAG}/${ASSET}"
 
 echo "[*] Fetching ${ASSET} from ${URL}"
+# Wipe first: a plain tar overlay would leave stale files behind when the
+# previous bundle had entries the new version no longer ships.
+rm -rf "$PKG_DIR"
 mkdir -p "$PKG_DIR"
 curl -fsSL "$URL" | tar -xz -C "$PKG_DIR"
 echo "[+] docs/pkg now serves ${TRACE50_WASM_TAG}"

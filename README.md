@@ -218,14 +218,14 @@ The Rust and WebAssembly test suites moved with the engine to the **[HyphAeon mo
 ./examples/run_cli_example.sh   # requires pip install trace50
 ```
 
-### Python parity harness
+### Engine verification (in the monorepo)
 
-The Python engine has been retired, but its validated behaviour is kept as
-golden files in the monorepo (`rust/tests/`), so the Rust engine stays pinned
-to it. The parity test compares the TN93 pair set and distances, L, the
-background calibration, the supported-edge set with BF/PEP/q, the cluster and
-static partitions, and the CHIN values — checking both the internal-TN93 path
-and the precomputed-distance path, without Python or tn93.
+Behavioural pinning lives in HyphAeon `rust/tests/`: a cross-language
+conformance suite pins each engine's observed outputs on shared fixtures, and
+CLI baselines under `rust/tests/baselines/trace50/` catch pipeline drift. The
+retired-Python-engine golden corpus that used to live under
+`crates/trace50-core/tests/fixtures/` was **not** carried over — it remains in
+this repository's git history if it is ever needed again.
 
 ---
 
