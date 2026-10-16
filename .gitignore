@@ -4,6 +4,9 @@ trace50-rust/target/
 **/target/
 **/*.rs.bk
 
+# wasm-pack bundle fetched at deploy time (see scripts/fetch_wasm.sh)
+docs/pkg/
+
 # Python cache and distribution artifacts
 __pycache__/
 *.py[cod]
