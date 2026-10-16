@@ -11,7 +11,7 @@
 # bundle. The app code never changes — it always imports ./pkg/.
 set -euo pipefail
 
-TRACE50_WASM_TAG="${TRACE50_WASM_TAG:-trace50-v5.0.0}"
+TRACE50_WASM_TAG="${TRACE50_WASM_TAG:-trace50-v5.0.0-beta.1}"
 PKG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/docs/pkg"
 ASSET="trace50-wasm-${TRACE50_WASM_TAG##*-v}-pkg.tar.gz"
 URL="https://github.com/veg/HyphAeon/releases/download/${TRACE50_WASM_TAG}/${ASSET}"
